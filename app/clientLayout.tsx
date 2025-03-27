@@ -8,6 +8,8 @@ import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
 import { Toaster } from "@/components/ui/toaster"
 import { AnimatePresence } from "framer-motion"
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useEffect } from "react"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -16,6 +18,17 @@ export default function ClientLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event)
+    })
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [supabase])
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
@@ -33,4 +46,3 @@ export default function ClientLayout({
     </html>
   )
 }
-

@@ -1,9 +1,10 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import Link from "next/link"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,50 +12,98 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Check, Loader2 } from "lucide-react"
+import { ArrowLeft, Check, Loader2, AlertCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 export default function AddWebsitePage() {
+  const supabase = createClientComponentClient()
+  const router = useRouter()
   const [url, setUrl] = useState("")
   const [name, setName] = useState("")
   const [checkInterval, setCheckInterval] = useState("5")
   const [isLoading, setIsLoading] = useState(false)
   const [isVerified, setIsVerified] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleVerify = () => {
-    if (!url) return
-
-    setIsLoading(true)
-
-    // Simulate verification process
-    setTimeout(() => {
-      setIsLoading(false)
-      setIsVerified(true)
-
-      // Auto-populate name from URL if not already set
-      if (!name) {
-        try {
-          const urlObj = new URL(url.startsWith("http") ? url : `https://${url}`)
-          setName(urlObj.hostname.replace("www.", ""))
-        } catch (e) {
-          // If URL parsing fails, use the raw input
-          setName(url)
+  const handleVerify = async () => {
+    if (!url) return;
+  
+    setIsLoading(true);
+    setError(null);
+  
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+  
+    try {
+      const response = await fetch(url.startsWith("http") ? url : `https://${url}`, {
+        method: 'HEAD',
+        signal: controller.signal,
+      });
+  
+      clearTimeout(timeoutId);
+  
+      if (response.ok) {
+        setIsLoading(false);
+        setIsVerified(true);
+  
+        if (!name) {
+          try {
+            const urlObj = new URL(url.startsWith("http") ? url : `https://${url}`);
+            setName(urlObj.hostname.replace("www.", ""));
+          } catch (e) {
+            setName(url);
+          }
         }
+      } else {
+        throw new Error("Website could not be reached");
       }
-    }, 1500)
-  }
+    } catch (e) {
+      clearTimeout(timeoutId); // Ensure timeout is cleared
+      setIsLoading(false);
+      setError("Could not verify website. Please check the URL.");
+      setIsVerified(false);
+    }
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setError(null)
 
-    // Simulate form submission
-    setTimeout(() => {
+    try {
+      // Get the current user
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        throw new Error("User not authenticated")
+      }
+
+      // Prepare website data
+      const websiteData = {
+        user_id: user.id,
+        url: url.startsWith("http") ? url : `https://${url}`,
+        name: name || url,
+        status: 'active',
+        monitoring_interval: parseInt(checkInterval),
+        last_checked_at: new Date().toISOString()
+      }
+
+      // Insert website into Supabase
+      const { data, error } = await supabase
+        .from('websites')
+        .insert(websiteData)
+        .select()
+
+      if (error) throw error
+
+      // Redirect to dashboard on success
+      router.push("/dashboard")
+    } catch (error) {
+      console.error("Error adding website:", error)
+      setError(error instanceof Error ? error.message : "An unexpected error occurred")
       setIsSubmitting(false)
-      // Redirect would happen here in a real app
-      window.location.href = "/dashboard"
-    }, 2000)
+    }
   }
 
   return (
@@ -123,6 +172,13 @@ export default function AddWebsitePage() {
                 )}
               </div>
 
+              {error && (
+                <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded relative flex items-center">
+                  <AlertCircle className="mr-2 h-5 w-5 text-red-500" />
+                  <span>{error}</span>
+                </div>
+              )}
+
               {isVerified && (
                 <>
                   <div className="space-y-2">
@@ -172,7 +228,11 @@ export default function AddWebsitePage() {
               <Button variant="outline" asChild>
                 <Link href="/dashboard">Cancel</Link>
               </Button>
-              <Button onClick={handleSubmit} disabled={!isVerified || !name || isSubmitting}>
+              <Button
+                onClick={handleSubmit}
+                disabled={!isVerified || !name || isSubmitting}
+                className={error ? "bg-red-500 hover:bg-red-600" : ""}
+              >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

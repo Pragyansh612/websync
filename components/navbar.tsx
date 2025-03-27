@@ -14,8 +14,11 @@ import {
 import { cn } from "@/lib/utils"
 import { useState, useEffect } from "react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Menu } from "lucide-react"
+import { Menu, LogOut, User } from "lucide-react"
 import { motion } from "framer-motion"
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useRouter } from "next/navigation"
+import { useToast } from "@/components/ui/use-toast"
 
 const routes = [
   { name: "Home", path: "/" },
@@ -28,15 +31,55 @@ export default function Navbar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const supabase = createClientComponentClient()
+  const router = useRouter()
+  const { toast } = useToast()
 
   useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      setIsLoggedIn(!!session)
+      setUserEmail(session?.user?.email ?? null)
+    }
+
+    checkUser()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsLoggedIn(!!session)
+      setUserEmail(session?.user?.email ?? null)
+    })
+
     const handleScroll = () => {
       setScrolled(window.scrollY > 10)
     }
 
     window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
+
+    return () => {
+      subscription.unsubscribe()
+      window.removeEventListener("scroll", handleScroll)
+    }
+  }, [supabase])
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut()
+    
+    if (error) {
+      toast({
+        title: "Logout Error",
+        description: "Unable to log out. Please try again.",
+        variant: "destructive"
+      })
+    } else {
+      toast({
+        title: "Logged Out",
+        description: "You have been successfully logged out.",
+      })
+      router.push('/')
+    }
+  }
 
   const navAnimation = {
     hidden: { opacity: 0, y: -20 },
@@ -57,6 +100,50 @@ export default function Navbar() {
       y: 0,
       transition: { duration: 0.3 },
     },
+  }
+
+  const AuthButtons = () => {
+    if (isLoggedIn) {
+      return (
+        <div className="flex items-center gap-2">
+          <motion.div variants={itemAnimation} className="flex items-center gap-2">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <User className="h-4 w-4" />
+              <span>{userEmail}</span>
+            </div>
+            <Button 
+              onClick={handleLogout}
+              variant="outline"
+              className="glass-button border-white/30 dark:border-white/10 hover:bg-primary/5 hover:border-primary/30"
+            >
+              <LogOut className="mr-2 h-4 w-4" /> Logout
+            </Button>
+          </motion.div>
+        </div>
+      )
+    }
+
+    return (
+      <>
+        <motion.div variants={itemAnimation}>
+          <Link href="/login">
+            <Button
+              variant="outline"
+              className="glass-button border-white/30 dark:border-white/10 hover:bg-primary/5 hover:border-primary/30"
+            >
+              Log In
+            </Button>
+          </Link>
+        </motion.div>
+        <motion.div variants={itemAnimation}>
+          <Link href="/signup">
+            <Button className="enhanced-glass-card bg-primary/90 text-primary-foreground border-primary/50 shadow-sm transition-all hover:shadow-md hover:shadow-primary/20 hover:-translate-y-0.5 btn-shine">
+              Sign Up
+            </Button>
+          </Link>
+        </motion.div>
+      </>
+    )
   }
 
   return (
@@ -108,23 +195,7 @@ export default function Navbar() {
             <ThemeToggle />
           </motion.div>
           <div className="hidden md:flex gap-2">
-            <motion.div variants={itemAnimation}>
-              <Link href="/login">
-                <Button
-                  variant="outline"
-                  className="glass-button border-white/30 dark:border-white/10 hover:bg-primary/5 hover:border-primary/30"
-                >
-                  Log In
-                </Button>
-              </Link>
-            </motion.div>
-            <motion.div variants={itemAnimation}>
-              <Link href="/signup">
-                <Button className="enhanced-glass-card bg-primary/90 text-primary-foreground border-primary/50 shadow-sm transition-all hover:shadow-md hover:shadow-primary/20 hover:-translate-y-0.5 btn-shine">
-                  Sign Up
-                </Button>
-              </Link>
-            </motion.div>
+            <AuthButtons />
           </div>
           <motion.div variants={itemAnimation} className="md:hidden">
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -153,18 +224,34 @@ export default function Navbar() {
                       {route.name}
                     </Link>
                   ))}
-                  <div className="flex flex-col gap-2 mt-4">
-                    <Link href="/login" onClick={() => setIsOpen(false)}>
-                      <Button variant="outline" className="w-full glass-button border-white/30 dark:border-white/10">
-                        Log In
+                  {isLoggedIn ? (
+                    <div className="flex flex-col gap-2 mt-4">
+                      <div className="text-muted-foreground text-sm flex items-center gap-2 px-4">
+                        <User className="h-4 w-4" />
+                        <span>{userEmail}</span>
+                      </div>
+                      <Button 
+                        onClick={handleLogout}
+                        variant="outline"
+                        className="w-full glass-button border-white/30 dark:border-white/10"
+                      >
+                        <LogOut className="mr-2 h-4 w-4" /> Logout
                       </Button>
-                    </Link>
-                    <Link href="/signup" onClick={() => setIsOpen(false)}>
-                      <Button className="w-full enhanced-glass-card bg-primary/90 text-primary-foreground border-primary/50">
-                        Sign Up
-                      </Button>
-                    </Link>
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 mt-4">
+                      <Link href="/login" onClick={() => setIsOpen(false)}>
+                        <Button variant="outline" className="w-full glass-button border-white/30 dark:border-white/10">
+                          Log In
+                        </Button>
+                      </Link>
+                      <Link href="/signup" onClick={() => setIsOpen(false)}>
+                        <Button className="w-full enhanced-glass-card bg-primary/90 text-primary-foreground border-primary/50">
+                          Sign Up
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
                 </nav>
               </SheetContent>
             </Sheet>
@@ -174,4 +261,3 @@ export default function Navbar() {
     </motion.header>
   )
 }
-

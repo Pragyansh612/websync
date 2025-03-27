@@ -119,44 +119,48 @@ export default function SignUpPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
+  
     // Reset previous signup errors
     setErrors((prev) => ({ ...prev, signupError: "" }))
-
+  
     if (!validateForm()) return
-
+  
     setIsLoading(true)
-
+  
     try {
-      // Supabase signup
+      // Supabase signup with explicit metadata
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName,
+            full_name: `${formData.firstName} ${formData.lastName}`,
           }
         }
       })
-
+  
       if (error) {
         // Handle signup error
         setErrors((prev) => ({ ...prev, signupError: error.message }))
         setIsLoading(false)
         return
       }
-
+  
+      // Additional debug logging
+      console.log('Signup Data:', data)
+  
       // Successful signup
       toast({
         title: "Account created successfully!",
         description: "Please check your email to verify your account.",
         duration: 5000,
       })
-
+  
       // Redirect or handle successful signup
       router.push("/dashboard")
     } catch (catchError) {
+      console.error('Signup Catch Error:', catchError)
+      
       // Catch any unexpected errors
       setErrors((prev) => ({
         ...prev,

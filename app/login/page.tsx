@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
@@ -16,6 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Eye, EyeOff, Loader2, Mail, Lock, Shield, AlertCircle } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/components/ui/use-toast"
+// import { supabase } from "@/lib/supabaseClient"
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -35,6 +37,20 @@ export default function LoginPage() {
   const securityRef = useRef(null)
   const formInView = useInView(formRef, { once: true, amount: 0.3 })
   const securityInView = useInView(securityRef, { once: true, amount: 0.3 })
+  const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (session) {
+        // If user is already logged in, redirect to dashboard
+        router.push('/dashboard')
+      }
+    }
+
+    checkSession()
+  }, [router])
 
   const validateForm = () => {
     const newErrors = {
@@ -61,23 +77,94 @@ export default function LoginPage() {
     return isValid
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
+  
     if (!validateForm()) return
-
+  
     setIsLoading(true)
+    setErrors({ email: "", password: "" })
+  
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false)
+      console.log('Login Response:', { data, error })
+  
+      if (error) {
+        // Handle specific error cases
+        console.error('Supabase Login Error:', error)
+        if (error.message.includes("Invalid login credentials")) {
+          setErrors({ 
+            email: "Invalid email or password", 
+            password: "Invalid email or password" 
+          })
+        } else {
+          toast({
+            title: "Login Error",
+            description: error.message,
+            variant: "destructive"
+          })
+        }
+        setIsLoading(false)
+        return
+      }
+  
+      // If login is successful
       toast({
         title: "Login successful!",
         description: "Welcome back to WebSync.",
         duration: 3000,
       })
+  
+      // Optionally store remember me preference
+      if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true')
+      } else {
+        localStorage.removeItem('rememberMe')
+      }
+  
       router.push("/dashboard")
-    }, 1500)
+    } catch (err) {
+      toast({
+        title: "Unexpected Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive"
+      })
+      setIsLoading(false)
+    }
+  }
+  
+  // For Google Login (inside the Google tab's Button onClick)
+  const handleGoogleLogin = async () => {
+    setIsLoading(true)
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`
+        }
+      })
+  
+      if (error) {
+        toast({
+          title: "Google Login Error",
+          description: error.message,
+          variant: "destructive"
+        })
+      }
+    } catch (err) {
+      toast({
+        title: "Unexpected Error",
+        description: "An error occurred during Google login",
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const containerAnimation = {
@@ -258,17 +345,7 @@ export default function LoginPage() {
                     <Button
                       variant="outline"
                       className="w-full h-11 glass-button border-white/30 dark:border-white/10 hover:bg-primary/10 hover:border-primary/30 text-base"
-                      onClick={() => {
-                        setIsLoading(true)
-                        setTimeout(() => {
-                          setIsLoading(false)
-                          toast({
-                            title: "Google Login",
-                            description: "This would connect to Google in a real application.",
-                            duration: 3000,
-                          })
-                        }, 1000)
-                      }}
+                      onClick={handleGoogleLogin}
                       disabled={isLoading}
                     >
                       {isLoading ? (
