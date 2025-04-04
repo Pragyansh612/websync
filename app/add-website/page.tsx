@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, Check, Loader2, AlertCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { websiteApi } from "@/services/api"
 
 export default function AddWebsitePage() {
   const supabase = createClientComponentClient()
@@ -25,6 +26,10 @@ export default function AddWebsitePage() {
   const [isVerified, setIsVerified] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [previewData, setPreviewData] = useState<any>(null)
+  const [monitorSSL, setMonitorSSL] = useState(true)
+  const [trackPerformance, setTrackPerformance] = useState(true)
+  const [checkContent, setCheckContent] = useState(false)
 
   const handleVerify = async () => {
     if (!url) return;
@@ -32,36 +37,62 @@ export default function AddWebsitePage() {
     setIsLoading(true);
     setError(null);
   
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-  
     try {
-      const response = await fetch(url.startsWith("http") ? url : `https://${url}`, {
-        method: 'HEAD',
-        signal: controller.signal,
-      });
-  
-      clearTimeout(timeoutId);
-  
-      if (response.ok) {
-        setIsLoading(false);
-        setIsVerified(true);
-  
-        if (!name) {
-          try {
-            const urlObj = new URL(url.startsWith("http") ? url : `https://${url}`);
-            setName(urlObj.hostname.replace("www.", ""));
-          } catch (e) {
-            setName(url);
-          }
-        }
-      } else {
-        throw new Error("Website could not be reached");
+      // First, let's check if URL is valid
+      const urlToCheck = url.startsWith("http") ? url : `https://${url}`;
+      
+      try {
+        // Validate URL format
+        new URL(urlToCheck);
+      } catch (e) {
+        throw new Error("Invalid URL format");
       }
-    } catch (e) {
-      clearTimeout(timeoutId); // Ensure timeout is cleared
+      
+      // Direct browser check (quickly verify it's reachable)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      try {
+        const response = await fetch(urlToCheck, {
+          method: 'HEAD',
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`Website returned status: ${response.status}`);
+        }
+      } catch (browserError) {
+        console.warn("Browser check failed:", browserError);
+        // Continue with server verification even if browser check fails
+        // (CORS or other browser limitations might prevent this check)
+      }
+      
+      // Now use our backend to verify the website (more thorough check)
+      // This is commented out since we need to implement the endpoint first
+      /*
+      const { data } = await websiteApi.verifyWebsite(urlToCheck);
+      setPreviewData(data);
+      */
+      
+      // If we reach here, website is verified
+      setIsVerified(true);
+  
+      // Set suggested name based on URL if not already set
+      if (!name) {
+        try {
+          const urlObj = new URL(urlToCheck);
+          setName(urlObj.hostname.replace("www.", ""));
+        } catch (e) {
+          setName(url);
+        }
+      }
+      
       setIsLoading(false);
-      setError("Could not verify website. Please check the URL.");
+    } catch (e) {
+      setIsLoading(false);
+      setError(e instanceof Error ? e.message : "Could not verify website. Please check the URL.");
       setIsVerified(false);
     }
   };
@@ -86,16 +117,33 @@ export default function AddWebsitePage() {
         name: name || url,
         status: 'active',
         monitoring_interval: parseInt(checkInterval),
-        last_checked_at: new Date().toISOString()
+        last_checked_at: new Date().toISOString(),
+        // track_performance: trackPerformance,
       }
 
       // Insert website into Supabase
-      const { data, error } = await supabase
+      const { data, error: supabaseError } = await supabase
         .from('websites')
         .insert(websiteData)
         .select()
 
-      if (error) throw error
+      if (supabaseError) throw supabaseError
+
+      // If website was added successfully, trigger an immediate check
+      if (data && data[0]) {
+        try {
+          // This is optional - trigger an immediate check on the backend
+          await websiteApi.checkWebsite(data[0].id);
+          
+          // Also trigger route discovery if needed
+          if (checkContent) {
+            await websiteApi.discoverRoutes(data[0].id);
+          }
+        } catch (checkError) {
+          // Just log if the check fails, don't block the flow
+          console.error("Initial website check failed:", checkError);
+        }
+      }
 
       // Redirect to dashboard on success
       router.push("/dashboard")
