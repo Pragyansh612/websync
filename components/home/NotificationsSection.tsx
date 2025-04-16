@@ -1,48 +1,57 @@
 "use client"
 
 import { useRef } from "react"
-import { motion, useInView } from "framer-motion"
+import { m, useInView, useReducedMotion } from "framer-motion"
 import { Bell, Check, AlertCircle, Brain, Mail } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function NotificationsSection() {
   const sectionRef = useRef(null)
   const ref = useRef(null)
-  const isInView = useInView(ref)
+  const isInView = useInView(ref, { once: true, amount: 0.2 })
+  const prefersReducedMotion = useReducedMotion()
 
-  // Animation variants
+  // Optimized animation variants
   const fadeIn = {
     hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { duration: 0.8, ease: "easeOut" } },
+    visible: { opacity: 1, transition: { duration: 0.6, ease: "easeOut" } },
   }
 
   const fadeInUp = {
-    hidden: { opacity: 0, y: 40 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: "easeOut" } },
+    hidden: { opacity: 0, y: 30 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
   }
 
   return (
     <section className="w-full py-20 md:py-24 lg:py-32 relative overflow-hidden" ref={ref}>
-      {/* Enhanced background blur elements */}
+      {/* Enhanced background blur elements - simplified for better performance */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none backdrop-blur-lg">
-        <motion.div
+        <m.div
           className="absolute top-[20%] right-[10%] w-[40%] h-[40%] rounded-full bg-gray-500/10 blur-3xl"
-          animate={{
-            scale: [1, 1.1, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
+          animate={
+            prefersReducedMotion
+              ? {}
+              : {
+                  scale: [1, 1.1, 1],
+                  opacity: [0.3, 0.5, 0.3],
+                }
+          }
           transition={{
             duration: 12,
             repeat: Number.POSITIVE_INFINITY,
             ease: "easeInOut",
           }}
         />
-        <motion.div
+        <m.div
           className="absolute bottom-[10%] left-[20%] w-[30%] h-[30%] rounded-full bg-gray-600/10 blur-3xl"
-          animate={{
-            scale: [1.1, 1, 1.1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
+          animate={
+            prefersReducedMotion
+              ? {}
+              : {
+                  scale: [1.1, 1, 1.1],
+                  opacity: [0.3, 0.5, 0.3],
+                }
+          }
           transition={{
             duration: 10,
             repeat: Number.POSITIVE_INFINITY,
@@ -55,24 +64,23 @@ export default function NotificationsSection() {
       </div>
 
       <div className="container px-4 md:px-6 relative">
-        <motion.div
+        <m.div
           className="flex flex-col items-center justify-center space-y-4 text-center mb-12"
           initial="hidden"
           animate={isInView ? "visible" : "hidden"}
           variants={fadeInUp}
         >
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-            Instant Notifications &
-              AI Analysis
+            Instant Notifications & AI Analysis
           </h2>
           <p className="text-gray-600 dark:text-gray-300 md:text-xl max-w-[800px]">
             Get alerted immediately when issues occur and receive detailed AI-powered insights to fix problems fast
           </p>
-        </motion.div>
+        </m.div>
 
         <div className="grid gap-8 md:grid-cols-2 lg:gap-12">
           {/* Notification Card with enhanced glass effect */}
-          <motion.div
+          <m.div
             className="flex flex-col"
             initial="hidden"
             animate={isInView ? "visible" : "hidden"}
@@ -100,7 +108,7 @@ export default function NotificationsSection() {
               <CardContent className="space-y-4 relative z-10">
                 <div className="bg-white/10 dark:bg-gray-900/30 backdrop-blur-xl rounded-lg p-4 border border-white/30 dark:border-white/5 shadow-inner relative overflow-hidden">
                   {/* Subtle animated glow effect */}
-                  <motion.div
+                  <m.div
                     className="absolute -inset-[100px] bg-gray-500/5 blur-3xl"
                     animate={{
                       opacity: [0.3, 0.5, 0.3],
@@ -171,10 +179,10 @@ export default function NotificationsSection() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
 
           {/* AI Analysis Card with enhanced glass effect */}
-          <motion.div
+          <m.div
             className="flex flex-col"
             initial="hidden"
             animate={isInView ? "visible" : "hidden"}
@@ -202,7 +210,7 @@ export default function NotificationsSection() {
               <CardContent className="space-y-4 relative z-10">
                 <div className="bg-white/10 dark:bg-gray-900/30 backdrop-blur-xl rounded-lg p-4 border border-white/30 dark:border-white/5 shadow-inner relative overflow-hidden">
                   {/* Subtle animated glow effect */}
-                  <motion.div
+                  <m.div
                     className="absolute -inset-[100px] bg-gray-600/5 blur-3xl"
                     animate={{
                       opacity: [0.3, 0.5, 0.3],
@@ -220,14 +228,14 @@ export default function NotificationsSection() {
                     <div className="space-y-1">
                       <h4 className="font-medium text-gray-900 dark:text-white">AI Analysis Results</h4>
                       <div className="relative h-8 w-full my-2 bg-gradient-to-r from-gray-500/10 via-[hsl(var(--accent-slate))]/10 to-gray-500/10 dark:from-gray-800/20 dark:via-[hsl(var(--accent-teal))]/20 dark:to-gray-800/20 backdrop-blur-xl rounded-md overflow-hidden border border-white/30 dark:border-white/10">
-                        <motion.div
+                        <m.div
                           className="absolute inset-0 w-full"
                           initial={{ x: "-100%" }}
                           animate={{ x: "100%" }}
                           transition={{ repeat: Number.POSITIVE_INFINITY, duration: 1.5, ease: "linear" }}
                         >
                           <div className="w-20 h-full bg-gradient-to-r from-transparent via-[hsl(var(--accent-slate))]/40 to-transparent dark:via-[hsl(var(--accent-teal))]/40"></div>
-                        </motion.div>
+                        </m.div>
                       </div>
                       <div className="space-y-2">
                         <div className="flex items-start gap-2">
@@ -300,7 +308,7 @@ export default function NotificationsSection() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </m.div>
         </div>
       </div>
     </section>

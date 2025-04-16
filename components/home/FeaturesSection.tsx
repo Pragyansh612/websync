@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef } from "react"
-import { motion, useInView } from "framer-motion"
+import { m, useInView, useReducedMotion } from "framer-motion"
 import Link from "next/link"
 import { ArrowRight, Shield, Zap, LineChart, Bell, Gauge } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,14 +10,15 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 export default function FeaturesSection() {
   const featuresRef = useRef(null)
   const featuresInView = useInView(featuresRef, { once: true, amount: 0.2 })
+  const prefersReducedMotion = useReducedMotion()
 
   const containerAnimation = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2,
+        staggerChildren: 0.08,
+        delayChildren: 0.1,
       },
     },
   }
@@ -27,7 +28,7 @@ export default function FeaturesSection() {
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] },
+      transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
     },
   }
 
@@ -35,30 +36,30 @@ export default function FeaturesSection() {
     <section className="w-full py-24 lg:py-32 relative overflow-hidden backdrop-blur-sm" ref={featuresRef}>
       <div className="absolute inset-0 bg-gradient-to-br from-gray-50/50 to-gray-100/50 dark:from-gray-950/30 dark:to-black/30 -z-10" />
 
-      {/* Decorative elements */}
+      {/* Decorative elements - simplified for better performance */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-gray-300/10 dark:bg-gray-700/10 rounded-full blur-3xl" />
         <div className="absolute bottom-1/3 left-1/4 w-72 h-72 bg-gray-400/10 dark:bg-gray-600/10 rounded-full blur-3xl" />
       </div>
 
       <div className="container px-4 md:px-6 mx-auto relative">
-        <motion.div
+        <m.div
           className="flex flex-col items-center justify-center space-y-4 text-center mb-12"
           initial={{ opacity: 0, y: 20 }}
           animate={featuresInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
           transition={{ duration: 0.6 }}
         >
           <div className="space-y-2 max-w-[800px]">
-          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300">
+            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300">
               Powerful Monitoring Features
             </h2>
             <p className="text-gray-600 dark:text-gray-300 md:text-xl/relaxed">
               Everything you need to keep your websites running smoothly
             </p>
           </div>
-        </motion.div>
+        </m.div>
 
-        <motion.div
+        <m.div
           className="mx-auto grid max-w-6xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mt-12"
           initial="hidden"
           animate={featuresInView ? "visible" : "hidden"}
@@ -128,7 +129,7 @@ export default function FeaturesSection() {
                 "Seamlessly integrate with your development pipeline, CI/CD tools, and other services via our robust API.",
             },
           ].map((feature, index) => (
-            <motion.div
+            <m.div
               key={index}
               variants={itemAnimation}
               whileHover={{
@@ -146,11 +147,11 @@ export default function FeaturesSection() {
                   <p className="text-sm text-gray-600 dark:text-gray-400">{feature.content}</p>
                 </CardContent>
               </Card>
-            </motion.div>
+            </m.div>
           ))}
-        </motion.div>
+        </m.div>
 
-        <motion.div
+        <m.div
           className="flex justify-center mt-12"
           initial={{ opacity: 0, y: 20 }}
           animate={featuresInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
@@ -165,7 +166,7 @@ export default function FeaturesSection() {
               View All Features <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
-        </motion.div>
+        </m.div>
       </div>
     </section>
   )
