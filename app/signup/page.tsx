@@ -119,14 +119,14 @@ export default function SignUpPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-  
+
     // Reset previous signup errors
     setErrors((prev) => ({ ...prev, signupError: "" }))
-  
+
     if (!validateForm()) return
-  
+
     setIsLoading(true)
-  
+
     try {
       // Supabase signup with explicit metadata
       const { data, error } = await supabase.auth.signUp({
@@ -138,29 +138,29 @@ export default function SignUpPage() {
           }
         }
       })
-  
+
       if (error) {
         // Handle signup error
         setErrors((prev) => ({ ...prev, signupError: error.message }))
         setIsLoading(false)
         return
       }
-  
+
       // Additional debug logging
       console.log('Signup Data:', data)
-  
+
       // Successful signup
       toast({
         title: "Account created successfully!",
         description: "Please check your email to verify your account.",
         duration: 5000,
       })
-  
+
       // Redirect or handle successful signup
       router.push("/dashboard")
     } catch (catchError) {
       console.error('Signup Catch Error:', catchError)
-      
+
       // Catch any unexpected errors
       setErrors((prev) => ({
         ...prev,
@@ -169,6 +169,41 @@ export default function SignUpPage() {
       setIsLoading(false)
     }
   }
+
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
+      if (error) {
+        toast({
+          title: "Authentication Error",
+          description: error.message,
+          duration: 5000,
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // The auth flow will redirect to Google, so we don't need to handle 
+      // success here as the user will leave this page
+      console.log("Google auth redirect initiated", data);
+    } catch (catchError) {
+      console.error('Google Sign In Error:', catchError);
+      toast({
+        title: "Authentication Error",
+        description: "Failed to connect to Google authentication service.",
+        duration: 5000,
+      });
+      setIsLoading(false);
+    }
+  };
 
   const containerAnimation = {
     hidden: { opacity: 0 },
@@ -407,17 +442,7 @@ export default function SignUpPage() {
                     <Button
                       variant="outline"
                       className="w-full h-11 glass-button border-white/30 dark:border-white/10 hover:bg-primary/10 hover:border-primary/30 text-base"
-                      onClick={() => {
-                        setIsLoading(true)
-                        setTimeout(() => {
-                          setIsLoading(false)
-                          toast({
-                            title: "Google Sign-Up",
-                            description: "This would connect to Google in a real application.",
-                            duration: 3000,
-                          })
-                        }, 1000)
-                      }}
+                      onClick={handleGoogleSignIn}
                       disabled={isLoading}
                     >
                       {isLoading ? (

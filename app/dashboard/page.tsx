@@ -7,32 +7,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import {
-  AlertCircle,
-  ArrowUpRight,
-  Check,
-  Clock,
-  ExternalLink,
-  Filter,
-  LineChart,
-  Plus,
-  RefreshCw,
-  Search,
-  Settings,
-  X,
-} from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { AlertCircle, ArrowUpRight, Check, Clock, ExternalLink, Filter, Plus, RefreshCw, Search, X } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
+import { supabase } from "@/lib/supabaseClient"
 
 // Sample data for the dashboard
 const websites = [
@@ -139,6 +120,31 @@ const recentAlerts = [
   },
 ]
 
+type Website = {
+  id: string
+  name: string
+  url: string
+  status: string
+  uptime?: string
+  response_time_ms?: number
+  last_checked_at?: string
+  error_message?: string
+  user_id?: string
+}
+
+// Update the Alert type to properly handle the website name
+type Alert = {
+  id: string
+  website_id: string
+  website_name?: string
+  type: string
+  severity: string
+  description: string
+  created_at: string
+  is_resolved: boolean
+  websites?: { name: string } | { name: string }[] | null
+}
+
 export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -151,31 +157,221 @@ export default function DashboardPage() {
     target: containerRef,
     offset: ["start end", "end start"],
   })
+  const [websites, setWebsites] = useState<Website[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [recentAlerts, setRecentAlerts] = useState<Alert[]>([])
+  const [performanceData, setPerformanceData] = useState<{ time: string; value: number }[]>([])
+  const [isMobile, setIsMobile] = useState(false)
 
   const opacity = useTransform(scrollYProgress, [0, 0.2], [0, 1])
   const y = useTransform(scrollYProgress, [0, 0.2], [50, 0])
 
+  // Check if the screen is mobile
   useEffect(() => {
-    // Trigger chart animation after component mounts
-    setTimeout(() => {
-      setAnimateChart(true)
-    }, 500)
+    const checkIfMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+
+    // Initial check
+    checkIfMobile()
+
+    // Add event listener for window resize
+    window.addEventListener("resize", checkIfMobile)
+
+    // Cleanup
+    return () => window.removeEventListener("resize", checkIfMobile)
   }, [])
 
-  const handleRefresh = () => {
-    setIsRefreshing(true)
-    // Simulate refresh
-    setTimeout(() => {
-      setIsRefreshing(false)
+  const fetchData = async () => {
+    setIsLoading(true)
+
+    // Get the session using the same method as in Navbar.tsx
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session || !session.user) {
+      console.error("No authenticated user found")
       toast({
-        title: "Dashboard Refreshed",
-        description: "All website data has been updated.",
-        duration: 3000,
+        title: "Authentication Error",
+        description: "Please log in to view your dashboard.",
+        variant: "destructive",
       })
-    }, 1000)
+      router.push("/login")
+      setIsLoading(false)
+      return
+    }
+
+    const userId = session.user.id
+
+    // Fetch websites with their latest check data
+    const { data: websitesData, error: websitesError } = await supabase
+      .from("websites")
+      .select(`
+        id, 
+        name, 
+        url, 
+        status,
+        last_checked_at,
+        user_id
+      `)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+
+    console.log(websitesData)
+
+    if (websitesError) {
+      console.error("Error fetching websites:", websitesError)
+    } else if (websitesData) {
+      // For each website, get its latest check data
+
+      const websitesWithStatus = await Promise.all(
+        websitesData.map(async (website) => {
+          const { data: latestCheck } = await supabase
+            .from("website_checks")
+            .select("status_code, response_time_ms, is_up, error_message")
+            .eq("website_id", website.id)
+            .order("timestamp", { ascending: false })
+            .limit(1)
+            .single()
+
+          // Calculate uptime based on is_up history
+          const { data: uptimeData } = await supabase
+            .from("website_checks")
+            .select("is_up")
+            .eq("website_id", website.id)
+            .order("timestamp", { ascending: false })
+            .limit(100)
+
+          const uptimePercentage = uptimeData
+            ? ((uptimeData.filter((check) => check.is_up).length / uptimeData.length) * 100).toFixed(2) + "%"
+            : "N/A"
+
+          // Fix: Map "active" status to "up" for display
+          let displayStatus = "down"
+          if (website.status === "active" || website.status === "up" || (latestCheck && latestCheck.is_up)) {
+            displayStatus = "up"
+          } else if (latestCheck && latestCheck.status_code >= 400 && latestCheck.status_code < 500) {
+            displayStatus = "degraded"
+          }
+
+          return {
+            ...website,
+            status: displayStatus,
+            uptime: uptimePercentage,
+            response_time_ms: latestCheck?.response_time_ms || 0,
+            error_message: latestCheck?.error_message,
+          }
+        }),
+      )
+
+      setWebsites(websitesWithStatus)
+    }
+
+    const { data: alertsData, error: alertsError } = await supabase
+      .from("alerts")
+      .select(`
+    id,
+    website_id,
+    type,
+    severity,
+    description,
+    created_at,
+    is_resolved,
+    websites:website_id (name)
+  `)
+      .order("created_at", { ascending: false })
+      .limit(5)
+
+    if (alertsError) {
+      console.error("Error fetching alerts:", alertsError)
+    } else if (alertsData) {
+      const formattedAlerts = alertsData.map((alert) => {
+        // Fix the TypeScript error by adding proper type checking
+        let websiteName = "Unknown Site"
+
+        // Check if websites exists and handle possible structures
+        if (alert.websites) {
+          if (Array.isArray(alert.websites)) {
+            websiteName = alert.websites.length > 0 && alert.websites[0]?.name ? alert.websites[0].name : "Unknown Site"
+          } else if (typeof alert.websites === "object" && alert.websites !== null) {
+            websiteName = (alert.websites as { name?: string }).name || "Unknown Site"
+          }
+        }
+
+        return {
+          ...alert,
+          website_name: websiteName,
+        }
+      })
+
+      setRecentAlerts(formattedAlerts)
+    }
+
+    // Fetch performance data for the chart (last 24 hours, hourly)
+    const oneDayAgo = new Date()
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1)
+
+    const { data: performanceHistoryData, error: performanceError } = await supabase
+      .from("website_checks")
+      .select("timestamp, response_time_ms")
+      .gte("timestamp", oneDayAgo.toISOString())
+      .order("timestamp", { ascending: true })
+
+    if (performanceError) {
+      console.error("Error fetching performance data:", performanceError)
+    } else if (performanceHistoryData) {
+      // Group by hour and calculate average
+      const hourlyData: Record<string, number[]> = {}
+
+      performanceHistoryData.forEach((record) => {
+        const hour = new Date(record.timestamp).getHours()
+        const hourString = `${hour}:00`
+
+        if (!hourlyData[hourString]) {
+          hourlyData[hourString] = []
+        }
+        hourlyData[hourString].push(record.response_time_ms)
+      })
+
+      const chartData = Object.entries(hourlyData).map(([time, values]) => ({
+        time,
+        value: Math.round(values.reduce((sum, val) => sum + val, 0) / values.length),
+      }))
+
+      setPerformanceData(chartData)
+    }
+
+    setIsLoading(false)
   }
 
-  const handleWebsiteClick = (websiteId: number) => {
+  // Update the refresh handler
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await fetchData()
+    setIsRefreshing(false)
+    toast({
+      title: "Dashboard Refreshed",
+      description: "All website data has been updated.",
+      duration: 3000,
+    })
+  }
+
+  useEffect(() => {
+    fetchData()
+
+    // Set up a refresh interval (e.g., every 5 minutes)
+    const intervalId = setInterval(
+      () => {
+        fetchData()
+      },
+      15 * 60 * 1000,
+    )
+
+    return () => clearInterval(intervalId)
+  }, [])
+
+  const handleWebsiteClick = (websiteId: string) => {
     router.push(`/dashboard/website/${websiteId}`)
   }
 
@@ -205,6 +401,62 @@ export default function DashboardPage() {
       transition: { duration: 0.4, ease: "easeOut" },
     },
   }
+
+  // Render a card for mobile view of each website
+  const renderWebsiteCard = (website: Website, index: number) => (
+    <motion.div
+      key={website.id}
+      className="rounded-lg border p-4 mb-4 hover:bg-primary/5 transition-colors cursor-pointer"
+      onClick={() => handleWebsiteClick(website.id)}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.3, delay: index * 0.05 }}
+      whileHover={{ backgroundColor: "rgba(var(--primary), 0.1)" }}
+    >
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <h3 className="font-medium">{website.name}</h3>
+          <p className="text-xs text-muted-foreground">{website.url}</p>
+        </div>
+        <Badge
+          variant={website.status === "up" ? "outline" : website.status === "down" ? "destructive" : "secondary"}
+          className={
+            website.status === "up"
+              ? "bg-green-500/10 text-green-500 hover:bg-green-500/20 hover:text-green-500"
+              : website.status === "down"
+                ? ""
+                : "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 hover:text-yellow-500"
+          }
+        >
+          <span className="flex items-center gap-1">
+            {website.status === "up" ? (
+              <Check className="h-3 w-3" />
+            ) : website.status === "down" ? (
+              <X className="h-3 w-3" />
+            ) : (
+              <AlertCircle className="h-3 w-3" />
+            )}
+            {website.status.charAt(0).toUpperCase() + website.status.slice(1)}
+          </span>
+        </Badge>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <div>
+          <p className="text-muted-foreground">Uptime</p>
+          <p>{website.uptime || "N/A"}</p>
+        </div>
+        <div>
+          <p className="text-muted-foreground">Response</p>
+          <p>{website.response_time_ms ? `${website.response_time_ms}ms` : "N/A"}</p>
+        </div>
+        <div className="col-span-2">
+          <p className="text-muted-foreground">Last Checked</p>
+          <p>{website.last_checked_at ? new Date(website.last_checked_at).toLocaleString() : "Never"}</p>
+        </div>
+      </div>
+    </motion.div>
+  )
 
   return (
     <motion.div
@@ -250,7 +502,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Overview Cards */}
-      <motion.div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" variants={itemAnimation}>
+      <motion.div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" variants={itemAnimation}>
         <motion.div
           whileHover={{ y: -5, transition: { duration: 0.2 } }}
           className="card-hover-enhanced glass-card gradient-border"
@@ -274,7 +526,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold gradient-text">{websites.length}</div>
-              <p className="text-xs text-muted-foreground">+2 from last month</p>
+              <p className="text-xs text-muted-foreground">Monitor your sites</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -293,7 +545,10 @@ export default function DashboardPage() {
                 {websites.filter((w) => w.status === "up").length}
               </div>
               <p className="text-xs text-muted-foreground">
-                {Math.round((websites.filter((w) => w.status === "up").length / websites.length) * 100)}% of total
+                {websites.length > 0
+                  ? Math.round((websites.filter((w) => w.status === "up").length / websites.length) * 100)
+                  : 0}
+                % of total
               </p>
             </CardContent>
           </Card>
@@ -313,7 +568,10 @@ export default function DashboardPage() {
                 {websites.filter((w) => w.status === "down").length}
               </div>
               <p className="text-xs text-muted-foreground">
-                {Math.round((websites.filter((w) => w.status === "down").length / websites.length) * 100)}% of total
+                {websites.length > 0
+                  ? Math.round((websites.filter((w) => w.status === "down").length / websites.length) * 100)
+                  : 0}
+                % of total
               </p>
             </CardContent>
           </Card>
@@ -330,12 +588,14 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
-                {Math.round(
-                  websites
-                    .filter((w) => w.status !== "down")
-                    .reduce((acc, site) => acc + Number.parseInt(site.responseTime), 0) /
-                    websites.filter((w) => w.status !== "down").length,
-                )}
+                {websites.length > 0 && websites.filter((w) => w.status !== "down" && w.response_time_ms).length > 0
+                  ? Math.round(
+                      websites
+                        .filter((w) => w.status !== "down" && w.response_time_ms)
+                        .reduce((acc, site) => acc + (site.response_time_ms || 0), 0) /
+                        websites.filter((w) => w.status !== "down" && w.response_time_ms).length,
+                    )
+                  : 0}
                 ms
               </div>
               <p className="text-xs text-muted-foreground">-12ms from last week</p>
@@ -346,22 +606,22 @@ export default function DashboardPage() {
 
       <motion.div variants={itemAnimation} style={{ opacity, y }}>
         <Tabs defaultValue="websites" className="space-y-4">
-          <TabsList className="bg-muted/60 p-1 rounded-lg">
+          <TabsList className="bg-muted/60 p-1 rounded-lg w-full flex overflow-x-auto">
             <TabsTrigger
               value="websites"
-              className="transition-all data-[state=active]:shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600/10 data-[state=active]:to-indigo-600/10"
+              className="transition-all data-[state=active]:shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600/10 data-[state=active]:to-indigo-600/10 flex-1"
             >
               Websites
             </TabsTrigger>
             <TabsTrigger
               value="performance"
-              className="transition-all data-[state=active]:shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600/10 data-[state=active]:to-indigo-600/10"
+              className="transition-all data-[state=active]:shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600/10 data-[state=active]:to-indigo-600/10 flex-1"
             >
               Performance
             </TabsTrigger>
             <TabsTrigger
               value="alerts"
-              className="transition-all data-[state=active]:shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600/10 data-[state=active]:to-indigo-600/10"
+              className="transition-all data-[state=active]:shadow-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600/10 data-[state=active]:to-indigo-600/10 flex-1"
             >
               Recent Alerts
             </TabsTrigger>
@@ -382,7 +642,7 @@ export default function DashboardPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[180px] transition-all border-primary/20 hover:border-primary/50">
+                  <SelectTrigger className="w-full sm:w-[180px] transition-all border-primary/20 hover:border-primary/50">
                     <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -397,151 +657,122 @@ export default function DashboardPage() {
                 </Button>
               </div>
             </div>
-            <div className="rounded-lg border glass-card overflow-hidden gradient-border">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-primary/5 hover:bg-primary/10">
-                    <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Uptime</TableHead>
-                    <TableHead>Response Time</TableHead>
-                    <TableHead>Last Checked</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredWebsites.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-4">
-                        No websites found matching your criteria
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <AnimatePresence>
-                      {filteredWebsites.map((website, index) => (
-                        <motion.tr
-                          key={website.id}
-                          className="cursor-pointer hover:bg-primary/5 transition-colors"
-                          onClick={() => handleWebsiteClick(website.id)}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.3, delay: index * 0.05 }}
-                          whileHover={{ backgroundColor: "rgba(var(--primary), 0.1)" }}
-                        >
-                          <TableCell className="font-medium">
-                            <div className="flex flex-col">
-                              <span>{website.name}</span>
-                              <span className="text-xs text-muted-foreground">{website.url}</span>
-                            </div>
+
+            {/* Responsive handling for websites display */}
+            {isMobile ? (
+              // Mobile view - cards
+              <div className="space-y-2">
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <RefreshCw className="h-6 w-6 animate-spin" />
+                  </div>
+                ) : filteredWebsites.length === 0 ? (
+                  <div className="text-center py-8">No websites found matching your criteria</div>
+                ) : (
+                  <AnimatePresence>
+                    {filteredWebsites.map((website, index) => renderWebsiteCard(website, index))}
+                  </AnimatePresence>
+                )}
+              </div>
+            ) : (
+              // Desktop view - table
+              <div className="rounded-lg border glass-card overflow-hidden gradient-border">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-primary/5 hover:bg-primary/10">
+                        <TableHead>Name</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Uptime</TableHead>
+                        <TableHead>Response Time</TableHead>
+                        <TableHead>Last Checked</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {isLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-4">
+                            <RefreshCw className="h-4 w-4 animate-spin mx-auto" />
                           </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                website.status === "up"
-                                  ? "outline"
-                                  : website.status === "down"
-                                    ? "destructive"
-                                    : "secondary"
-                              }
-                              className={
-                                website.status === "up"
-                                  ? "bg-green-500/10 text-green-500 hover:bg-green-500/20 hover:text-green-500"
-                                  : website.status === "down"
-                                    ? ""
-                                    : "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 hover:text-yellow-500"
-                              }
+                        </TableRow>
+                      ) : filteredWebsites.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-4">
+                            No websites found matching your criteria
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        <AnimatePresence>
+                          {filteredWebsites.map((website, index) => (
+                            <motion.tr
+                              key={website.id}
+                              className="cursor-pointer hover:bg-primary/5 transition-colors"
+                              onClick={() => handleWebsiteClick(website.id)}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              transition={{ duration: 0.3, delay: index * 0.05 }}
+                              whileHover={{ backgroundColor: "rgba(var(--primary), 0.1)" }}
                             >
-                              <span className="flex items-center gap-1">
-                                {website.status === "up" ? (
-                                  <Check className="h-3 w-3" />
-                                ) : website.status === "down" ? (
-                                  <X className="h-3 w-3" />
-                                ) : (
-                                  <AlertCircle className="h-3 w-3" />
-                                )}
-                                {website.status.charAt(0).toUpperCase() + website.status.slice(1)}
-                              </span>
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{website.uptime}</TableCell>
-                          <TableCell>{website.responseTime}</TableCell>
-                          <TableCell>{website.lastChecked}</TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="icon" asChild className="hover:bg-primary/10">
-                                <Link href={`/dashboard/website/${website.id}`}>
-                                  <LineChart className="h-4 w-4" />
-                                  <span className="sr-only">View Details</span>
-                                </Link>
-                              </Button>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="hover:bg-primary/10">
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      width="24"
-                                      height="24"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      className="h-4 w-4"
-                                    >
-                                      <circle cx="12" cy="12" r="1" />
-                                      <circle cx="12" cy="5" r="1" />
-                                      <circle cx="12" cy="19" r="1" />
-                                    </svg>
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="animate-in fade-in-50 zoom-in-95">
-                                  <DropdownMenuItem className="cursor-pointer">
-                                    <RefreshCw className="mr-2 h-4 w-4" />
-                                    <span>Refresh Status</span>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem className="cursor-pointer">
-                                    <ExternalLink className="mr-2 h-4 w-4" />
-                                    <span>Visit Website</span>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem className="cursor-pointer">
-                                    <Settings className="mr-2 h-4 w-4" />
-                                    <span>Edit Settings</span>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-destructive focus:text-destructive cursor-pointer">
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      width="24"
-                                      height="24"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      className="mr-2 h-4 w-4"
-                                    >
-                                      <path d="M3 6h18" />
-                                      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                                      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                                      <line x1="10" x2="10" y1="11" y2="17" />
-                                      <line x1="14" x2="14" y1="11" y2="17" />
-                                    </svg>
-                                    <span>Remove</span>
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </TableCell>
-                        </motion.tr>
-                      ))}
-                    </AnimatePresence>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                              <TableCell className="font-medium">
+                                <div className="flex flex-col">
+                                  <span>{website.name}</span>
+                                  <span className="text-xs text-muted-foreground">{website.url}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    website.status === "up"
+                                      ? "outline"
+                                      : website.status === "down"
+                                        ? "destructive"
+                                        : "secondary"
+                                  }
+                                  className={
+                                    website.status === "up"
+                                      ? "bg-green-500/10 text-green-500 hover:bg-green-500/20 hover:text-green-500"
+                                      : website.status === "down"
+                                        ? ""
+                                        : "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 hover:text-yellow-500"
+                                  }
+                                >
+                                  <span className="flex items-center gap-1">
+                                    {website.status === "up" ? (
+                                      <Check className="h-3 w-3" />
+                                    ) : website.status === "down" ? (
+                                      <X className="h-3 w-3" />
+                                    ) : (
+                                      <AlertCircle className="h-3 w-3" />
+                                    )}
+                                    {website.status.charAt(0).toUpperCase() + website.status.slice(1)}
+                                  </span>
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{website.uptime || "N/A"}</TableCell>
+                              <TableCell>
+                                {website.response_time_ms ? `${website.response_time_ms}ms` : "N/A"}
+                              </TableCell>
+                              <TableCell>
+                                {website.last_checked_at
+                                  ? new Date(website.last_checked_at).toLocaleTimeString()
+                                  : "Never"}
+                              </TableCell>
+                              <TableCell>
+                                <Button variant="ghost" size="icon" className="hover:bg-primary/10">
+                                  <ExternalLink className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </motion.tr>
+                          ))}
+                        </AnimatePresence>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
           </TabsContent>
           <TabsContent value="performance" className="space-y-4">
             <motion.div
@@ -555,7 +786,7 @@ export default function DashboardPage() {
                   <CardTitle className="gradient-text">Response Time (Last 24 Hours)</CardTitle>
                   <CardDescription>Average response time across all monitored websites</CardDescription>
                 </CardHeader>
-                <CardContent className="h-[300px]">
+                <CardContent className="h-[300px] sm:h-[300px]">
                   <div className="h-full w-full">
                     <div className="h-full w-full flex flex-col">
                       <div className="flex-1 relative">
@@ -592,10 +823,10 @@ export default function DashboardPage() {
                           ))}
                         </div>
                       </div>
-                      <div className="h-6 flex">
+                      <div className="h-6 flex overflow-x-auto">
                         {performanceData.map((data, index) => (
                           <div key={index} className="flex-1 text-xs text-center text-muted-foreground">
-                            {index % 2 === 0 ? data.time : ""}
+                            {index % (isMobile ? 4 : 2) === 0 ? data.time : ""}
                           </div>
                         ))}
                       </div>
@@ -664,10 +895,12 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex-1 space-y-1">
                           <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium">{alert.website}</p>
-                            <span className="text-xs text-muted-foreground">{alert.time}</span>
+                            <p className="text-sm font-medium">{alert.website_name}</p>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(alert.created_at).toLocaleString()}
+                            </span>
                           </div>
-                          <p className="text-sm text-muted-foreground">{alert.message}</p>
+                          <p className="text-sm text-muted-foreground">{alert.description}</p>
                         </div>
                         <Button variant="ghost" size="icon" className="hover:bg-primary/10">
                           <ArrowUpRight className="h-4 w-4" />
@@ -680,10 +913,6 @@ export default function DashboardPage() {
                   <Button
                     variant="outline"
                     className="w-full transition-all hover:bg-primary/10 hover:border-primary/30 btn-shine"
-                    whileHover={{
-                      scale: 1.02,
-                      transition: { duration: 0.2 },
-                    }}
                   >
                     View All Alerts
                   </Button>
@@ -696,4 +925,3 @@ export default function DashboardPage() {
     </motion.div>
   )
 }
-

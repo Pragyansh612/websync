@@ -51,5 +51,3 @@ export default function RootLayout({
 }>) {
   return <ClientLayout>{children}</ClientLayout>
 }
-
-// import './globals.css'

@@ -113,13 +113,13 @@ export function DashboardSidebar({ pathname = "" }: DashboardSidebarProps) {
     <Sidebar className="border-r h-full glass-sidebar">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-4 py-2">
-          <div className="text-xl font-bold gradient-text">WebSync</div>
+          {/* <div className="text-xl font-bold gradient-text">WebSync</div> */}
         </div>
       </SidebarHeader>
       <SidebarContent>
         <motion.div initial="hidden" animate="visible" variants={sidebarAnimation}>
           <SidebarGroup>
-            <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
+            <SidebarGroupLabel></SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {menuItems.map((item, index) => (
