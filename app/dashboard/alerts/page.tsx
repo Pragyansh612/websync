@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,107 +11,30 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AlertCircle, ArrowUpRight, Bell, BellOff, Check, Clock, Filter, Search, X } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { motion, AnimatePresence } from "framer-motion"
+import { supabase } from "@/lib/supabaseClient"
+import { useToast } from "@/components/ui/use-toast"
 
-// Sample data for alerts
-const alerts = [
-  {
-    id: 1,
-    website: "Documentation",
-    websiteId: 4,
-    message: "Website is down",
-    details: "Connection timeout after 30 seconds",
-    time: "5 minutes ago",
-    timestamp: "2024-03-17T12:15:00Z",
-    severity: "critical",
-    status: "active",
-  },
-  {
-    id: 2,
-    website: "E-commerce Store",
-    websiteId: 6,
-    message: "High response time detected",
-    details: "Response time increased to 320ms (threshold: 300ms)",
-    time: "15 minutes ago",
-    timestamp: "2024-03-17T12:05:00Z",
-    severity: "warning",
-    status: "active",
-  },
-  {
-    id: 3,
-    website: "Customer Portal",
-    websiteId: 3,
-    message: "SSL certificate expires in 7 days",
-    details: "Certificate will expire on 2024-03-24",
-    time: "1 hour ago",
-    timestamp: "2024-03-17T11:20:00Z",
-    severity: "info",
-    status: "active",
-  },
-  {
-    id: 4,
-    website: "API Service",
-    websiteId: 2,
-    message: "Intermittent 503 errors detected",
-    details: "3 occurrences in the last 10 minutes",
-    time: "30 minutes ago",
-    timestamp: "2024-03-17T11:50:00Z",
-    severity: "warning",
-    status: "active",
-  },
-  {
-    id: 5,
-    website: "Blog",
-    websiteId: 5,
-    message: "Slow response time detected",
-    details: "Response time increased to 180ms (threshold: 150ms)",
-    time: "2 hours ago",
-    timestamp: "2024-03-17T10:20:00Z",
-    severity: "warning",
-    status: "resolved",
-  },
-  {
-    id: 6,
-    website: "Main Website",
-    websiteId: 1,
-    message: "Brief downtime detected",
-    details: "Website was down for 2 minutes",
-    time: "3 hours ago",
-    timestamp: "2024-03-17T09:15:00Z",
-    severity: "critical",
-    status: "resolved",
-  },
-  {
-    id: 7,
-    website: "Documentation",
-    websiteId: 4,
-    message: "404 errors on multiple pages",
-    details: "5 broken links detected during crawl",
-    time: "4 hours ago",
-    timestamp: "2024-03-17T08:20:00Z",
-    severity: "warning",
-    status: "resolved",
-  },
-  {
-    id: 8,
-    website: "E-commerce Store",
-    websiteId: 6,
-    message: "Payment gateway timeout",
-    details: "Checkout process affected for 5 minutes",
-    time: "5 hours ago",
-    timestamp: "2024-03-17T07:15:00Z",
-    severity: "critical",
-    status: "resolved",
-  },
-]
+interface Alert {
+  id: string
+  website_id: string
+  website_name: string | null
+  website_url: string | null
+  type: string
+  severity: string | null
+  description: string | null
+  is_resolved: boolean
+  created_at: string
+  resolved_at: string | null
+  websites?: { name: string; url: string } | { name: string; url: string }[] | null
+}
 
-// Sample data for alert statistics
-const alertStats = {
-  total: alerts.length,
-  active: alerts.filter((a) => a.status === "active").length,
-  critical: alerts.filter((a) => a.severity === "critical").length,
-  warning: alerts.filter((a) => a.severity === "warning").length,
-  info: alerts.filter((a) => a.severity === "info").length,
-  resolved: alerts.filter((a) => a.status === "resolved").length,
+interface AlertStats {
+  total: number
+  active: number
+  critical: number
+  warning: number
+  info: number
+  resolved: number
 }
 
 export default function AlertsPage() {
@@ -118,24 +42,174 @@ export default function AlertsPage() {
   const [severityFilter, setSeverityFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
   const [activeTab, setActiveTab] = useState("all")
+  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
+  const router = useRouter()
+
+  useEffect(() => {
+    async function fetchAlerts() {
+      try {
+        setLoading(true)
+        // First check if user is authenticated
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) {
+          // Redirect to login if not authenticated
+          router.push('/login')
+          return
+        }
+
+        const { data: alertsData, error } = await supabase
+          .from('alerts')
+          .select(`
+    id,
+    website_id,
+    type,
+    severity,
+    description,
+    is_resolved,
+    created_at,
+    resolved_at,
+    websites:websites(name, url)
+  `)
+          .eq('websites.user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        // And update the formattedAlerts mapping:
+        const formattedAlerts: Alert[] = alertsData?.map(alert => {
+          // Extract website name and URL safely regardless of data structure
+          let websiteName = 'Unknown Website';
+          let websiteUrl = '#';
+
+          if (alert.websites) {
+            if (Array.isArray(alert.websites)) {
+              // Handle case where websites is an array
+              websiteName = alert.websites[0]?.name || 'Unknown Website';
+              websiteUrl = alert.websites[0]?.url || '#';
+            } else {
+              // Handle case where websites is an object
+              websiteName = alert.websites.name || 'Unknown Website';
+              websiteUrl = alert.websites.url || '#';
+            }
+          }
+
+          return {
+            id: alert.id,
+            website_id: alert.website_id,
+            website_name: websiteName,
+            website_url: websiteUrl,
+            type: alert.type,
+            severity: alert.severity,
+            description: alert.description,
+            is_resolved: alert.is_resolved,
+            created_at: alert.created_at,
+            resolved_at: alert.resolved_at
+          };
+        }) || [];
+
+        setAlerts(formattedAlerts)
+      } catch (error) {
+        console.error('Error fetching alerts:', error)
+        toast({
+          title: "Error",
+          description: "Failed to load alerts. Please try again.",
+          variant: "destructive"
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchAlerts()
+  }, [router, toast])
+
+  // Calculate time ago from timestamp
+  const getTimeAgo = (timestamp: string) => {
+    const now = new Date()
+    const alertTime = new Date(timestamp)
+    const diffInMinutes = Math.floor((now.getTime() - alertTime.getTime()) / (1000 * 60))
+
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} minute${diffInMinutes !== 1 ? 's' : ''} ago`
+    } else if (diffInMinutes < 24 * 60) {
+      const hours = Math.floor(diffInMinutes / 60)
+      return `${hours} hour${hours !== 1 ? 's' : ''} ago`
+    } else {
+      const days = Math.floor(diffInMinutes / (24 * 60))
+      return `${days} day${days !== 1 ? 's' : ''} ago`
+    }
+  }
+
+  // Handle resolving an alert
+  const handleResolveAlert = async (alertId: string) => {
+    try {
+      const { error } = await supabase
+        .from('alerts')
+        .update({
+          is_resolved: true,
+          resolved_at: new Date().toISOString()
+        })
+        .eq('id', alertId)
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      // Update the local state
+      setAlerts(prevAlerts =>
+        prevAlerts.map(alert =>
+          alert.id === alertId
+            ? { ...alert, is_resolved: true, resolved_at: new Date().toISOString() }
+            : alert
+        )
+      )
+
+      toast({
+        title: "Alert Resolved",
+        description: "The alert has been marked as resolved.",
+        variant: "default"
+      })
+    } catch (error) {
+      console.error('Error resolving alert:', error)
+      toast({
+        title: "Error",
+        description: "Failed to resolve alert. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
 
   // Filter alerts based on search, severity, status, and active tab
   const filteredAlerts = alerts.filter((alert) => {
     const matchesSearch =
-      alert.website.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      alert.message.toLowerCase().includes(searchQuery.toLowerCase())
+      (alert.website_name?.toLowerCase().includes(searchQuery.toLowerCase()) || false) ||
+      (alert.type.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (alert.description?.toLowerCase().includes(searchQuery.toLowerCase()) || false)
 
     const matchesSeverity = severityFilter === "all" || alert.severity === severityFilter
-    const matchesStatus = statusFilter === "all" || alert.status === statusFilter
+    const matchesStatus = statusFilter === "all" ||
+      (statusFilter === "active" && !alert.is_resolved) ||
+      (statusFilter === "resolved" && alert.is_resolved)
 
     // Filter based on active tab
     const matchesTab =
       activeTab === "all" ||
-      (activeTab === "active" && alert.status === "active") ||
-      (activeTab === "resolved" && alert.status === "resolved")
+      (activeTab === "active" && !alert.is_resolved) ||
+      (activeTab === "resolved" && alert.is_resolved)
 
     return matchesSearch && matchesSeverity && matchesStatus && matchesTab
   })
+
+  // Calculate alert statistics
+  const alertStats: AlertStats = {
+    total: alerts.length,
+    active: alerts.filter(a => !a.is_resolved).length,
+    critical: alerts.filter(a => a.severity === "critical").length,
+    warning: alerts.filter(a => a.severity === "warning").length,
+    info: alerts.filter(a => a.severity === "info").length,
+    resolved: alerts.filter(a => a.is_resolved).length,
+  }
 
   const containerAnimation = {
     hidden: { opacity: 0 },
@@ -311,17 +385,26 @@ export default function AlertsPage() {
                 </div>
               </div>
 
-              <TabsContent value="all" className="m-0">
-                <AlertList alerts={filteredAlerts} />
-              </TabsContent>
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-muted-foreground">Loading alerts...</p>
+                </div>
+              ) : (
+                <>
+                  <TabsContent value="all" className="m-0">
+                    <AlertList alerts={filteredAlerts} onResolve={handleResolveAlert} getTimeAgo={getTimeAgo} />
+                  </TabsContent>
 
-              <TabsContent value="active" className="m-0">
-                <AlertList alerts={filteredAlerts} />
-              </TabsContent>
+                  <TabsContent value="active" className="m-0">
+                    <AlertList alerts={filteredAlerts} onResolve={handleResolveAlert} getTimeAgo={getTimeAgo} />
+                  </TabsContent>
 
-              <TabsContent value="resolved" className="m-0">
-                <AlertList alerts={filteredAlerts} />
-              </TabsContent>
+                  <TabsContent value="resolved" className="m-0">
+                    <AlertList alerts={filteredAlerts} onResolve={handleResolveAlert} getTimeAgo={getTimeAgo} />
+                  </TabsContent>
+                </>
+              )}
             </CardContent>
             <CardFooter>
               <div className="text-sm text-muted-foreground">
@@ -335,7 +418,13 @@ export default function AlertsPage() {
   )
 }
 
-function AlertList({ alerts }: { alerts: typeof alerts }) {
+interface AlertListProps {
+  alerts: Alert[]
+  onResolve: (id: string) => void
+  getTimeAgo: (timestamp: string) => string
+}
+
+function AlertList({ alerts, onResolve, getTimeAgo }: AlertListProps) {
   return (
     <div className="space-y-4">
       {alerts.length === 0 ? (
@@ -392,35 +481,40 @@ function AlertList({ alerts }: { alerts: typeof alerts }) {
               <div className="flex-1 space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium">{alert.website}</p>
+                    <p className="text-sm font-medium">{alert.website_name}</p>
                     <Badge
-                      variant={alert.status === "active" ? "outline" : "secondary"}
+                      variant={!alert.is_resolved ? "outline" : "secondary"}
                       className={
-                        alert.status === "active"
+                        !alert.is_resolved
                           ? "bg-primary/10 text-primary border-primary/30"
                           : "bg-green-500/10 text-green-500 border-green-500/30"
                       }
                     >
-                      {alert.status === "active" ? "Active" : "Resolved"}
+                      {!alert.is_resolved ? "Active" : "Resolved"}
                     </Badge>
                   </div>
                   <span className="text-xs text-muted-foreground flex items-center">
                     <Clock className="h-3 w-3 mr-1" />
-                    {alert.time}
+                    {getTimeAgo(alert.created_at)}
                   </span>
                 </div>
-                <p className="text-sm font-medium">{alert.message}</p>
-                <p className="text-sm text-muted-foreground">{alert.details}</p>
+                <p className="text-sm font-medium">{alert.type}</p>
+                <p className="text-sm text-muted-foreground">{alert.description}</p>
               </div>
               <div className="flex gap-2">
                 <Button variant="ghost" size="icon" asChild className="hover:bg-primary/10">
-                  <Link href={`/dashboard/website/${alert.websiteId}`}>
+                  <Link href={`/dashboard/website/${alert.website_id}`}>
                     <ArrowUpRight className="h-4 w-4" />
                     <span className="sr-only">View Website</span>
                   </Link>
                 </Button>
-                {alert.status === "active" && (
-                  <Button variant="outline" size="sm" className="text-xs hover:bg-primary/10 hover:border-primary/30">
+                {!alert.is_resolved && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs hover:bg-primary/10 hover:border-primary/30"
+                    onClick={() => onResolve(alert.id)}
+                  >
                     Resolve
                   </Button>
                 )}
@@ -432,4 +526,3 @@ function AlertList({ alerts }: { alerts: typeof alerts }) {
     </div>
   )
 }
-

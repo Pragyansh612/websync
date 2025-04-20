@@ -1,391 +1,293 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Check, Clock, ExternalLink, RefreshCw, X, AlertCircle, ArrowUpRight, Settings } from "lucide-react"
+import { 
+  ArrowLeft, 
+  Check, 
+  Clock, 
+  ExternalLink, 
+  RefreshCw, 
+  X, 
+  AlertCircle, 
+  ArrowUpRight, 
+  Settings 
+} from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { motion } from "framer-motion"
+import { format, formatDistance, subDays } from "date-fns"
+import { supabase } from "@/lib/supabaseClient"
 
-// Sample website data
-const websites = [
-  {
-    id: 1,
-    name: "Main Website",
-    url: "https://example.com",
-    status: "up",
-    uptime: "99.98%",
-    responseTime: "124ms",
-    lastChecked: "2 minutes ago",
-    errors: 0,
-    description: "Company's main marketing website",
-    location: "US East",
-    checkInterval: "1 minute",
-    sslExpiry: "2024-12-31",
-    performanceHistory: [
-      { date: "2023-06-01", responseTime: 120 },
-      { date: "2023-06-02", responseTime: 118 },
-      { date: "2023-06-03", responseTime: 125 },
-      { date: "2023-06-04", responseTime: 132 },
-      { date: "2023-06-05", responseTime: 128 },
-      { date: "2023-06-06", responseTime: 122 },
-      { date: "2023-06-07", responseTime: 119 },
-      { date: "2023-06-08", responseTime: 130 },
-      { date: "2023-06-09", responseTime: 135 },
-      { date: "2023-06-10", responseTime: 124 },
-      { date: "2023-06-11", responseTime: 120 },
-      { date: "2023-06-12", responseTime: 118 },
-      { date: "2023-06-13", responseTime: 122 },
-      { date: "2023-06-14", responseTime: 124 },
-    ],
-    uptimeHistory: [
-      { date: "2023-06-01", uptime: 100 },
-      { date: "2023-06-02", uptime: 100 },
-      { date: "2023-06-03", uptime: 100 },
-      { date: "2023-06-04", uptime: 99.8 },
-      { date: "2023-06-05", uptime: 100 },
-      { date: "2023-06-06", uptime: 100 },
-      { date: "2023-06-07", uptime: 100 },
-      { date: "2023-06-08", uptime: 100 },
-      { date: "2023-06-09", uptime: 99.9 },
-      { date: "2023-06-10", uptime: 100 },
-      { date: "2023-06-11", uptime: 100 },
-      { date: "2023-06-12", uptime: 100 },
-      { date: "2023-06-13", uptime: 100 },
-      { date: "2023-06-14", uptime: 100 },
-    ],
-    recentErrors: [
-      { date: "2023-06-04 14:23", message: "Connection timeout", duration: "2 minutes" },
-      { date: "2023-06-09 08:12", message: "503 Service Unavailable", duration: "1 minute" },
-    ],
-  },
-  {
-    id: 2,
-    name: "API Service",
-    url: "https://api.example.com",
-    status: "up",
-    uptime: "99.95%",
-    responseTime: "89ms",
-    lastChecked: "1 minute ago",
-    errors: 0,
-    description: "REST API for mobile and web applications",
-    location: "US East",
-    checkInterval: "30 seconds",
-    sslExpiry: "2024-10-15",
-    performanceHistory: [
-      { date: "2023-06-01", responseTime: 85 },
-      { date: "2023-06-02", responseTime: 88 },
-      { date: "2023-06-03", responseTime: 90 },
-      { date: "2023-06-04", responseTime: 87 },
-      { date: "2023-06-05", responseTime: 92 },
-      { date: "2023-06-06", responseTime: 89 },
-      { date: "2023-06-07", responseTime: 86 },
-      { date: "2023-06-08", responseTime: 88 },
-      { date: "2023-06-09", responseTime: 91 },
-      { date: "2023-06-10", responseTime: 89 },
-      { date: "2023-06-11", responseTime: 87 },
-      { date: "2023-06-12", responseTime: 85 },
-      { date: "2023-06-13", responseTime: 88 },
-      { date: "2023-06-14", responseTime: 89 },
-    ],
-    uptimeHistory: [
-      { date: "2023-06-01", uptime: 100 },
-      { date: "2023-06-02", uptime: 100 },
-      { date: "2023-06-03", uptime: 99.9 },
-      { date: "2023-06-04", uptime: 100 },
-      { date: "2023-06-05", uptime: 100 },
-      { date: "2023-06-06", uptime: 100 },
-      { date: "2023-06-07", uptime: 99.8 },
-      { date: "2023-06-08", uptime: 100 },
-      { date: "2023-06-09", uptime: 100 },
-      { date: "2023-06-10", uptime: 100 },
-      { date: "2023-06-11", uptime: 100 },
-      { date: "2023-06-12", uptime: 100 },
-      { date: "2023-06-13", uptime: 99.9 },
-      { date: "2023-06-14", uptime: 100 },
-    ],
-    recentErrors: [
-      { date: "2023-06-03 10:15", message: "429 Too Many Requests", duration: "45 seconds" },
-      { date: "2023-06-07 16:30", message: "Database connection error", duration: "3 minutes" },
-      { date: "2023-06-13 22:45", message: "Gateway timeout", duration: "1 minute" },
-    ],
-  },
-  {
-    id: 3,
-    name: "Customer Portal",
-    url: "https://portal.example.com",
-    status: "up",
-    uptime: "99.90%",
-    responseTime: "156ms",
-    lastChecked: "3 minutes ago",
-    errors: 2,
-    description: "Customer login and account management portal",
-    location: "US East, Europe",
-    checkInterval: "1 minute",
-    sslExpiry: "2024-08-22",
-    performanceHistory: [
-      { date: "2023-06-01", responseTime: 150 },
-      { date: "2023-06-02", responseTime: 155 },
-      { date: "2023-06-03", responseTime: 158 },
-      { date: "2023-06-04", responseTime: 152 },
-      { date: "2023-06-05", responseTime: 160 },
-      { date: "2023-06-06", responseTime: 165 },
-      { date: "2023-06-07", responseTime: 155 },
-      { date: "2023-06-08", responseTime: 150 },
-      { date: "2023-06-09", responseTime: 148 },
-      { date: "2023-06-10", responseTime: 152 },
-      { date: "2023-06-11", responseTime: 158 },
-      { date: "2023-06-12", responseTime: 162 },
-      { date: "2023-06-13", responseTime: 156 },
-      { date: "2023-06-14", responseTime: 154 },
-    ],
-    uptimeHistory: [
-      { date: "2023-06-01", uptime: 100 },
-      { date: "2023-06-02", uptime: 99.8 },
-      { date: "2023-06-03", uptime: 100 },
-      { date: "2023-06-04", uptime: 100 },
-      { date: "2023-06-05", uptime: 99.9 },
-      { date: "2023-06-06", uptime: 100 },
-      { date: "2023-06-07", uptime: 100 },
-      { date: "2023-06-08", uptime: 100 },
-      { date: "2023-06-09", uptime: 99.7 },
-      { date: "2023-06-10", uptime: 100 },
-      { date: "2023-06-11", uptime: 100 },
-      { date: "2023-06-12", uptime: 99.9 },
-      { date: "2023-06-13", uptime: 100 },
-      { date: "2023-06-14", uptime: 100 },
-    ],
-    recentErrors: [
-      { date: "2023-06-02 09:45", message: "Database query timeout", duration: "2 minutes" },
-      { date: "2023-06-05 14:20", message: "Authentication service error", duration: "1 minute" },
-      { date: "2023-06-09 18:30", message: "500 Internal Server Error", duration: "5 minutes" },
-      { date: "2023-06-12 11:15", message: "Session management error", duration: "1 minute" },
-    ],
-  },
-  {
-    id: 4,
-    name: "Documentation",
-    url: "https://docs.example.com",
-    status: "down",
-    uptime: "98.45%",
-    responseTime: "0ms",
-    lastChecked: "5 minutes ago",
-    errors: 1,
-    description: "Product documentation and API reference",
-    location: "US East, US West",
-    checkInterval: "5 minutes",
-    sslExpiry: "2024-11-05",
-    performanceHistory: [
-      { date: "2023-06-01", responseTime: 180 },
-      { date: "2023-06-02", responseTime: 175 },
-      { date: "2023-06-03", responseTime: 182 },
-      { date: "2023-06-04", responseTime: 178 },
-      { date: "2023-06-05", responseTime: 185 },
-      { date: "2023-06-06", responseTime: 180 },
-      { date: "2023-06-07", responseTime: 176 },
-      { date: "2023-06-08", responseTime: 179 },
-      { date: "2023-06-09", responseTime: 183 },
-      { date: "2023-06-10", responseTime: 180 },
-      { date: "2023-06-11", responseTime: 175 },
-      { date: "2023-06-12", responseTime: 178 },
-      { date: "2023-06-13", responseTime: 0 },
-      { date: "2023-06-14", responseTime: 0 },
-    ],
-    uptimeHistory: [
-      { date: "2023-06-01", uptime: 100 },
-      { date: "2023-06-02", uptime: 100 },
-      { date: "2023-06-03", uptime: 99.8 },
-      { date: "2023-06-04", uptime: 100 },
-      { date: "2023-06-05", uptime: 100 },
-      { date: "2023-06-06", uptime: 99.9 },
-      { date: "2023-06-07", uptime: 100 },
-      { date: "2023-06-08", uptime: 100 },
-      { date: "2023-06-09", uptime: 100 },
-      { date: "2023-06-10", uptime: 99.7 },
-      { date: "2023-06-11", uptime: 100 },
-      { date: "2023-06-12", uptime: 100 },
-      { date: "2023-06-13", uptime: 0 },
-      { date: "2023-06-14", uptime: 0 },
-    ],
-    recentErrors: [
-      { date: "2023-06-03 12:30", message: "DNS resolution failure", duration: "3 minutes" },
-      { date: "2023-06-06 08:15", message: "Connection refused", duration: "1 minute" },
-      { date: "2023-06-10 16:45", message: "504 Gateway Timeout", duration: "4 minutes" },
-      { date: "2023-06-13 10:00", message: "Host unreachable", duration: "ongoing" },
-    ],
-  },
-  {
-    id: 5,
-    name: "Blog",
-    url: "https://blog.example.com",
-    status: "up",
-    uptime: "99.99%",
-    responseTime: "110ms",
-    lastChecked: "2 minutes ago",
-    errors: 0,
-    description: "Company blog and news",
-    location: "US East, Europe",
-    checkInterval: "5 minutes",
-    sslExpiry: "2024-09-18",
-    performanceHistory: [
-      { date: "2023-06-01", responseTime: 108 },
-      { date: "2023-06-02", responseTime: 112 },
-      { date: "2023-06-03", responseTime: 110 },
-      { date: "2023-06-04", responseTime: 105 },
-      { date: "2023-06-05", responseTime: 115 },
-      { date: "2023-06-06", responseTime: 112 },
-      { date: "2023-06-07", responseTime: 108 },
-      { date: "2023-06-08", responseTime: 110 },
-      { date: "2023-06-09", responseTime: 113 },
-      { date: "2023-06-10", responseTime: 110 },
-      { date: "2023-06-11", responseTime: 107 },
-      { date: "2023-06-12", responseTime: 110 },
-      { date: "2023-06-13", responseTime: 112 },
-      { date: "2023-06-14", responseTime: 110 },
-    ],
-    uptimeHistory: [
-      { date: "2023-06-01", uptime: 100 },
-      { date: "2023-06-02", uptime: 100 },
-      { date: "2023-06-03", uptime: 100 },
-      { date: "2023-06-04", uptime: 100 },
-      { date: "2023-06-05", uptime: 100 },
-      { date: "2023-06-06", uptime: 100 },
-      { date: "2023-06-07", uptime: 100 },
-      { date: "2023-06-08", uptime: 100 },
-      { date: "2023-06-09", uptime: 100 },
-      { date: "2023-06-10", uptime: 100 },
-      { date: "2023-06-11", uptime: 99.9 },
-      { date: "2023-06-12", uptime: 100 },
-      { date: "2023-06-13", uptime: 100 },
-      { date: "2023-06-14", uptime: 100 },
-    ],
-    recentErrors: [{ date: "2023-06-11 15:20", message: "Slow response time", duration: "1 minute" }],
-  },
-  {
-    id: 6,
-    name: "E-commerce Store",
-    url: "https://store.example.com",
-    status: "degraded",
-    uptime: "99.80%",
-    responseTime: "320ms",
-    lastChecked: "1 minute ago",
-    errors: 3,
-    description: "Online store and shopping cart",
-    location: "US East, US West, Europe, Asia",
-    checkInterval: "30 seconds",
-    sslExpiry: "2024-07-12",
-    performanceHistory: [
-      { date: "2023-06-01", responseTime: 220 },
-      { date: "2023-06-02", responseTime: 225 },
-      { date: "2023-06-03", responseTime: 230 },
-      { date: "2023-06-04", responseTime: 228 },
-      { date: "2023-06-05", responseTime: 235 },
-      { date: "2023-06-06", responseTime: 240 },
-      { date: "2023-06-07", responseTime: 250 },
-      { date: "2023-06-08", responseTime: 260 },
-      { date: "2023-06-09", responseTime: 270 },
-      { date: "2023-06-10", responseTime: 280 },
-      { date: "2023-06-11", responseTime: 290 },
-      { date: "2023-06-12", responseTime: 300 },
-      { date: "2023-06-13", responseTime: 310 },
-      { date: "2023-06-14", responseTime: 320 },
-    ],
-    uptimeHistory: [
-      { date: "2023-06-01", uptime: 100 },
-      { date: "2023-06-02", uptime: 99.9 },
-      { date: "2023-06-03", uptime: 100 },
-      { date: "2023-06-04", uptime: 99.8 },
-      { date: "2023-06-05", uptime: 100 },
-      { date: "2023-06-06", uptime: 99.9 },
-      { date: "2023-06-07", uptime: 100 },
-      { date: "2023-06-08", uptime: 99.7 },
-      { date: "2023-06-09", uptime: 100 },
-      { date: "2023-06-10", uptime: 99.8 },
-      { date: "2023-06-11", uptime: 100 },
-      { date: "2023-06-12", uptime: 99.9 },
-      { date: "2023-06-13", uptime: 99.8 },
-      { date: "2023-06-14", uptime: 99.7 },
-    ],
-    recentErrors: [
-      { date: "2023-06-02 11:30", message: "Database connection error", duration: "1 minute" },
-      { date: "2023-06-04 14:45", message: "Payment gateway timeout", duration: "2 minutes" },
-      { date: "2023-06-08 09:15", message: "Product catalog service error", duration: "5 minutes" },
-      { date: "2023-06-10 16:30", message: "Checkout process failure", duration: "3 minutes" },
-      { date: "2023-06-12 13:20", message: "Inventory service error", duration: "1 minute" },
-      { date: "2023-06-13 18:45", message: "High response time", duration: "2 minutes" },
-      { date: "2023-06-14 10:10", message: "Search functionality degraded", duration: "ongoing" },
-    ],
-  },
-]
+interface WebsiteCheck {
+  id: string
+  website_id: string
+  timestamp: string
+  status_code: number
+  response_time_ms: number
+  is_up: boolean
+  error_message: string | null
+  ssl_expiry_date: string | null
+  ssl_valid: boolean | null
+}
+
+interface Website {
+  id: string
+  user_id: string
+  url: string
+  name: string
+  status: string
+  monitoring_interval: number
+  created_at: string
+  last_checked_at: string | null
+}
+
+interface Alert {
+  id: string
+  website_id: string
+  type: string
+  severity: string
+  description: string
+  is_resolved: boolean
+  created_at: string
+  resolved_at: string | null
+}
+
+interface RouteCheck {
+  id: string
+  route_id: string
+  status_code: number
+  is_up: boolean
+  response_time_ms: number
+  checked_at: string
+  error_message: string | null
+}
+
+interface WebsiteData {
+  website: Website | null
+  checks: WebsiteCheck[]
+  alerts: Alert[]
+  uptimePercentage: number
+  avgResponseTime: number
+  recentErrors: number
+}
 
 export default function WebsiteDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [website, setWebsite] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const [animateCharts, setAnimateCharts] = useState(false)
+  const [websiteData, setWebsiteData] = useState<WebsiteData | null>(null)
+  const [performanceHistory, setPerformanceHistory] = useState<{date: string, responseTime: number}[]>([])
+  const [uptimeHistory, setUptimeHistory] = useState<{date: string, uptime: number}[]>([])
+  const [errorLog, setErrorLog] = useState<{message: string, date: string, duration: string}[]>([])
 
-  useEffect(() => {
-    // Find the website by ID
-    const websiteId = Number(params.id)
-    const foundWebsite = websites.find((w) => w.id === websiteId)
+  const websiteId = params.id as string
 
-    if (foundWebsite) {
-      setWebsite(foundWebsite)
-    } else {
-      // Redirect to dashboard if website not found
-      router.push("/dashboard")
+  const fetchWebsiteData = async () => {
+    setIsLoading(true)
+    try {
+      // Fetch website details
+      const { data: website, error: websiteError } = await supabase
+        .from('websites')
+        .select('*')
+        .eq('id', websiteId)
+        .single()
+
+      if (websiteError) throw websiteError
+
+      // Fetch website checks
+      const { data: checks, error: checksError } = await supabase
+        .from('website_checks')
+        .select('*')
+        .eq('website_id', websiteId)
+        .order('timestamp', { ascending: false })
+        .limit(100)
+
+      if (checksError) throw checksError
+
+      // Fetch alerts
+      const { data: alerts, error: alertsError } = await supabase
+        .from('alerts')
+        .select('*')
+        .eq('website_id', websiteId)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (alertsError) throw alertsError
+
+      // Calculate uptime percentage
+      const recentChecks = checks.filter(check => 
+        new Date(check.timestamp) > subDays(new Date(), 30)
+      )
+      
+      const uptimePercentage = recentChecks.length > 0
+        ? (recentChecks.filter(check => check.is_up).length / recentChecks.length) * 100
+        : 100
+
+      // Calculate average response time
+      const recentResponseTimes = recentChecks
+        .filter(check => check.is_up && check.response_time_ms > 0)
+        .map(check => check.response_time_ms)
+      
+      const avgResponseTime = recentResponseTimes.length > 0
+        ? Math.round(recentResponseTimes.reduce((sum, time) => sum + time, 0) / recentResponseTimes.length)
+        : 0
+
+      // Count recent errors
+      const recentErrors = recentChecks.filter(check => !check.is_up).length
+
+      // Prepare performance history data
+      const last14DaysChecks = checks
+        .filter(check => new Date(check.timestamp) > subDays(new Date(), 14))
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+
+      const performanceData: {date: string, responseTime: number}[] = []
+      const uptimeData: {date: string, uptime: number}[] = []
+      
+      // Group checks by day
+      const checksByDay = last14DaysChecks.reduce((acc, check) => {
+        const day = check.timestamp.split('T')[0]
+        if (!acc[day]) acc[day] = []
+        acc[day].push(check)
+        return acc
+      }, {} as Record<string, WebsiteCheck[]>)
+      
+      // Get last 14 days
+      const last14Days = Array.from({ length: 14 }, (_, i) => {
+        const date = subDays(new Date(), 13 - i)
+        return format(date, 'yyyy-MM-dd')
+      })
+      
+      // Prepare data for each day
+      last14Days.forEach(day => {
+        const dayChecks = checksByDay[day] || []
+        
+        // Calculate average response time for the day
+        const dayResponseTimes = dayChecks
+          .filter((check:any) => check.is_up && check.response_time_ms > 0)
+          .map((check:any) => check.response_time_ms)
+        
+        const avgDayResponseTime = dayResponseTimes.length > 0
+          ? Math.round(dayResponseTimes.reduce((sum:any, time:any) => sum + time, 0) / dayResponseTimes.length)
+          : 0
+        
+        performanceData.push({
+          date: day,
+          responseTime: avgDayResponseTime || 0
+        })
+        
+        // Calculate uptime for the day
+        const dayUptime = dayChecks.length > 0
+          ? (dayChecks.filter((check:any) => check.is_up).length / dayChecks.length) * 100
+          : 100
+        
+        uptimeData.push({
+          date: day,
+          uptime: Number(dayUptime.toFixed(2))
+        })
+      })
+      
+      // Prepare error log data
+      const errorLogData = alerts
+        .filter(alert => alert.type === 'downtime' || alert.type === 'error')
+        .map(alert => {
+          const duration = alert.resolved_at 
+            ? formatDistance(new Date(alert.resolved_at), new Date(alert.created_at))
+            : 'Ongoing'
+          
+          return {
+            message: alert.description,
+            date: format(new Date(alert.created_at), 'MMM dd, yyyy HH:mm'),
+            duration
+          }
+        })
+
+      setWebsiteData({
+        website,
+        checks,
+        alerts,
+        uptimePercentage: Number(uptimePercentage.toFixed(2)),
+        avgResponseTime,
+        recentErrors
+      })
+      
+      setPerformanceHistory(performanceData)
+      setUptimeHistory(uptimeData)
+      setErrorLog(errorLogData)
+      
+      setIsLoading(false)
+      
+      // Trigger chart animation after data is loaded
+      setTimeout(() => {
+        setAnimateCharts(true)
+      }, 500)
+      
+    } catch (error) {
+      console.error('Error fetching website data:', error)
+      setIsLoading(false)
       toast({
-        title: "Website not found",
-        description: "The requested website could not be found.",
+        title: "Error loading website data",
+        description: "An error occurred while fetching website data.",
         variant: "destructive",
       })
+      router.push("/dashboard")
     }
+  }
 
-    // Trigger chart animation after component mounts
-    setTimeout(() => {
-      setAnimateCharts(true)
-    }, 500)
-  }, [params.id, router, toast])
+  useEffect(() => {
+    fetchWebsiteData()
+  }, [websiteId])
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true)
-    // Simulate refresh
-    setTimeout(() => {
-      setIsRefreshing(false)
+    try {
+      await fetchWebsiteData()
       toast({
         title: "Website Status Refreshed",
         description: "The latest status has been fetched.",
         duration: 3000,
       })
-    }, 1000)
+    } catch (error) {
+      console.error('Error refreshing website data:', error)
+      toast({
+        title: "Error refreshing data",
+        description: "An error occurred while refreshing website data.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
-  if (!website) {
-    return (
-      <div className="container py-10">
-        <div className="flex items-center justify-center h-[60vh]">
-          <motion.div
-            className="text-center"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <h2 className="text-2xl font-bold">Loading website data...</h2>
-            <p className="text-muted-foreground mt-2">Please wait while we fetch the website details.</p>
-            <div className="mt-4 flex justify-center">
-              <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-            </div>
-          </motion.div>
-        </div>
-      </div>
-    )
-  }
+  const getStatusInfo = useMemo(() => {
+    if (!websiteData?.website) return { status: 'unknown', label: 'Unknown' }
+    
+    const latestCheck = websiteData.checks[0]
+    if (!latestCheck) return { status: 'unknown', label: 'Unknown' }
+    
+    return {
+      status: latestCheck.is_up ? 'up' : 'down',
+      label: latestCheck.is_up ? 'Up' : 'Down'
+    }
+  }, [websiteData])
+
+  const getLastCheckedTime = useMemo(() => {
+    if (!websiteData?.website?.last_checked_at) return 'Never'
+    return formatDistance(new Date(websiteData.website.last_checked_at), new Date(), { addSuffix: true })
+  }, [websiteData])
+
+  const getCheckInterval = useMemo(() => {
+    if (!websiteData?.website?.monitoring_interval) return 'Unknown'
+    const minutes = Math.floor(websiteData.website.monitoring_interval / 60)
+    return `${minutes} minutes`
+  }, [websiteData])
 
   const containerAnimation = {
     hidden: { opacity: 0 },
@@ -406,6 +308,50 @@ export default function WebsiteDetailPage() {
     },
   }
 
+  if (isLoading) {
+    return (
+      <div className="container py-10">
+        <div className="flex items-center justify-center h-[60vh]">
+          <motion.div
+            className="text-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <h2 className="text-2xl font-bold">Loading website data...</h2>
+            <p className="text-muted-foreground mt-2">Please wait while we fetch the website details.</p>
+            <div className="mt-4 flex justify-center">
+              <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!websiteData || !websiteData.website) {
+    return (
+      <div className="container py-10">
+        <div className="flex items-center justify-center h-[60vh]">
+          <motion.div
+            className="text-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <h2 className="text-2xl font-bold">Website not found</h2>
+            <p className="text-muted-foreground mt-2">The requested website could not be found.</p>
+            <div className="mt-4">
+              <Link href="/dashboard">
+                <Button>Go back to Dashboard</Button>
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <motion.div className="container py-10" initial="hidden" animate="visible" variants={containerAnimation}>
       <motion.div className="mb-8" variants={itemAnimation}>
@@ -419,16 +365,16 @@ export default function WebsiteDetailPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-indigo-500 bg-clip-text text-transparent">
-              {website.name}
+              {websiteData.website.name}
             </h1>
             <p className="text-muted-foreground flex items-center gap-2">
               <a
-                href={website.url}
+                href={websiteData.website.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-primary transition-colors flex items-center"
               >
-                {website.url}
+                {websiteData.website.url}
                 <ExternalLink className="h-3 w-3 ml-1" />
               </a>
             </p>
@@ -448,7 +394,7 @@ export default function WebsiteDetailPage() {
               )}
               Refresh Status
             </Button>
-            <Link href={`/dashboard/website/${website.id}/settings`}>
+            <Link href={`/dashboard/website/${websiteData.website.id}/settings`}>
               <Button size="sm" className="shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
                 <Settings className="h-4 w-4 mr-2" />
                 Website Settings
@@ -462,14 +408,14 @@ export default function WebsiteDetailPage() {
       <motion.div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8" variants={itemAnimation}>
         <motion.div
           whileHover={{ y: -5, transition: { duration: 0.2 } }}
-          className={`card-hover-enhanced glass-card ${website.status === "down" ? "border-destructive/50" : ""}`}
+          className={`card-hover-enhanced glass-card ${getStatusInfo.status === "down" ? "border-destructive/50" : ""}`}
         >
           <Card className="border-0 bg-transparent">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Status</CardTitle>
-              {website.status === "up" ? (
+              {getStatusInfo.status === "up" ? (
                 <Check className="h-4 w-4 text-green-500" />
-              ) : website.status === "down" ? (
+              ) : getStatusInfo.status === "down" ? (
                 <X className="h-4 w-4 text-destructive" />
               ) : (
                 <AlertCircle className="h-4 w-4 text-yellow-500" />
@@ -479,29 +425,29 @@ export default function WebsiteDetailPage() {
               <div className="flex items-center gap-2">
                 <Badge
                   variant={
-                    website.status === "up" ? "outline" : website.status === "down" ? "destructive" : "secondary"
+                    getStatusInfo.status === "up" ? "outline" : getStatusInfo.status === "down" ? "destructive" : "secondary"
                   }
                   className={
-                    website.status === "up"
+                    getStatusInfo.status === "up"
                       ? "bg-green-500/10 text-green-500"
-                      : website.status === "down"
+                      : getStatusInfo.status === "down"
                         ? ""
                         : "bg-yellow-500/10 text-yellow-500"
                   }
                 >
                   <span className="flex items-center gap-1">
-                    {website.status === "up" ? (
+                    {getStatusInfo.status === "up" ? (
                       <Check className="h-3 w-3" />
-                    ) : website.status === "down" ? (
+                    ) : getStatusInfo.status === "down" ? (
                       <X className="h-3 w-3" />
                     ) : (
                       <AlertCircle className="h-3 w-3" />
                     )}
-                    {website.status.charAt(0).toUpperCase() + website.status.slice(1)}
+                    {getStatusInfo.label}
                   </span>
                 </Badge>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">Last checked {website.lastChecked}</p>
+              <p className="text-xs text-muted-foreground mt-2">Last checked {getLastCheckedTime}</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -526,7 +472,7 @@ export default function WebsiteDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold bg-gradient-to-r from-green-500 to-emerald-500 bg-clip-text text-transparent">
-                {website.uptime}
+                {websiteData.uptimePercentage}%
               </div>
               <p className="text-xs text-muted-foreground">Last 30 days</p>
             </CardContent>
@@ -541,7 +487,7 @@ export default function WebsiteDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-indigo-500 bg-clip-text text-transparent">
-                {website.responseTime}
+                {websiteData.avgResponseTime}ms
               </div>
               <p className="text-xs text-muted-foreground">Average over last 24 hours</p>
             </CardContent>
@@ -556,7 +502,7 @@ export default function WebsiteDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
-                {website.errors}
+                {websiteData.recentErrors}
               </div>
               <p className="text-xs text-muted-foreground">In the last 24 hours</p>
             </CardContent>
@@ -609,20 +555,25 @@ export default function WebsiteDetailPage() {
                   <CardContent>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div>
-                        <h3 className="text-sm font-medium text-muted-foreground mb-2">Description</h3>
-                        <p>{website.description}</p>
+                        <h3 className="text-sm font-medium text-muted-foreground mb-2">URL</h3>
+                        <p>{websiteData.website.url}</p>
                       </div>
                       <div>
-                        <h3 className="text-sm font-medium text-muted-foreground mb-2">Monitoring Location</h3>
-                        <p>{website.location}</p>
+                        <h3 className="text-sm font-medium text-muted-foreground mb-2">Status</h3>
+                        <Badge
+                          variant={websiteData.website.status === "active" ? "outline" : "secondary"}
+                          className={websiteData.website.status === "active" ? "bg-green-500/10 text-green-500" : ""}
+                        >
+                          {websiteData.website.status.charAt(0).toUpperCase() + websiteData.website.status.slice(1)}
+                        </Badge>
                       </div>
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-2">Check Interval</h3>
-                        <p>{website.checkInterval}</p>
+                        <p>{getCheckInterval}</p>
                       </div>
                       <div>
-                        <h3 className="text-sm font-medium text-muted-foreground mb-2">SSL Certificate Expiry</h3>
-                        <p>{website.sslExpiry}</p>
+                        <h3 className="text-sm font-medium text-muted-foreground mb-2">Added On</h3>
+                        <p>{format(new Date(websiteData.website.created_at), 'MMM dd, yyyy')}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -645,7 +596,7 @@ export default function WebsiteDetailPage() {
                       <div className="h-full w-full flex flex-col">
                         <div className="flex-1 relative">
                           <div className="absolute inset-0 flex items-end">
-                            {website.performanceHistory.map((data, index) => (
+                            {performanceHistory.map((data, index) => (
                               <div key={index} className="flex-1 flex flex-col items-center justify-end h-full">
                                 <motion.div
                                   className="w-full bg-gradient-to-t from-primary/80 to-primary/40 mx-[1px] rounded-t-sm"
@@ -659,13 +610,21 @@ export default function WebsiteDetailPage() {
                                     backgroundColor: "rgba(var(--primary), 0.8)",
                                     transition: { duration: 0.2 },
                                   }}
-                                ></motion.div>
+                                >
+                                  <motion.div
+                                    className="opacity-0 hover:opacity-100 transition-opacity absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs rounded px-2 py-1 pointer-events-none"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    whileHover={{ opacity: 1, y: 0 }}
+                                  >
+                                    {data.responseTime}ms
+                                  </motion.div>
+                                </motion.div>
                               </div>
                             ))}
                           </div>
                         </div>
                         <div className="h-6 flex">
-                          {website.performanceHistory.map((data, index) => (
+                          {performanceHistory.map((data, index) => (
                             <div key={index} className="flex-1 text-xs text-center text-muted-foreground">
                               {index % 2 === 0 ? data.date.split("-")[2] : ""}
                             </div>
@@ -693,7 +652,7 @@ export default function WebsiteDetailPage() {
                       <div className="h-full w-full flex flex-col">
                         <div className="flex-1 relative">
                           <div className="absolute inset-0 flex items-end">
-                            {website.uptimeHistory.map((data, index) => (
+                            {uptimeHistory.map((data, index) => (
                               <div key={index} className="flex-1 flex flex-col items-center justify-end h-full">
                                 <motion.div
                                   className="w-full mx-[1px] rounded-t-sm"
@@ -710,13 +669,21 @@ export default function WebsiteDetailPage() {
                                     scale: 1.05,
                                     transition: { duration: 0.2 },
                                   }}
-                                ></motion.div>
+                                >
+                                  <motion.div
+                                    className="opacity-0 hover:opacity-100 transition-opacity absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs rounded px-2 py-1 pointer-events-none"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    whileHover={{ opacity: 1, y: 0 }}
+                                  >
+                                    {data.uptime}%
+                                  </motion.div>
+                                </motion.div>
                               </div>
                             ))}
                           </div>
                         </div>
                         <div className="h-6 flex">
-                          {website.uptimeHistory.map((data, index) => (
+                          {uptimeHistory.map((data, index) => (
                             <div key={index} className="flex-1 text-xs text-center text-muted-foreground">
                               {index % 2 === 0 ? data.date.split("-")[2] : ""}
                             </div>
@@ -744,21 +711,20 @@ export default function WebsiteDetailPage() {
                 </CardHeader>
                 <CardContent className="h-[400px]">
                   <div className="h-full w-full">
-                    <div className="h-full w-full flex flex-col">
+                  <div className="h-full w-full flex flex-col">
                       <div className="flex-1 relative">
                         <div className="absolute inset-0 flex items-end">
-                          {website.performanceHistory.map((data, index) => (
+                          {performanceHistory.map((data, index) => (
                             <div key={index} className="flex-1 flex flex-col items-center justify-end h-full">
                               <motion.div
-                                className="w-full bg-gradient-to-t from-primary/80 to-primary/40 mx-[1px] rounded-t-sm"
+                                className="w-full bg-gradient-to-t from-blue-500/80 to-blue-400/40 mx-[1px] rounded-t-sm"
                                 initial={{ height: 0 }}
                                 animate={{
-                                  height: animateCharts ? `${(data.responseTime / 350) * 100}%` : "0%",
+                                  height: animateCharts ? `${(data.responseTime / 500) * 100}%` : "0%",
                                   transition: { duration: 1, delay: index * 0.05 },
                                 }}
                                 whileHover={{
                                   scale: 1.05,
-                                  backgroundColor: "rgba(var(--primary), 0.8)",
                                   transition: { duration: 0.2 },
                                 }}
                               >
@@ -773,18 +739,11 @@ export default function WebsiteDetailPage() {
                             </div>
                           ))}
                         </div>
-
-                        {/* Y-axis labels */}
-                        <div className="absolute inset-y-0 left-0 flex flex-col justify-between pointer-events-none">
-                          <div className="text-xs text-muted-foreground">350ms</div>
-                          <div className="text-xs text-muted-foreground">175ms</div>
-                          <div className="text-xs text-muted-foreground">0ms</div>
-                        </div>
                       </div>
                       <div className="h-6 flex">
-                        {website.performanceHistory.map((data, index) => (
+                        {performanceHistory.map((data, index) => (
                           <div key={index} className="flex-1 text-xs text-center text-muted-foreground">
-                            {data.date.split("-")[2]}
+                            {index % 2 === 0 ? format(new Date(data.date), 'MMM dd') : ""}
                           </div>
                         ))}
                       </div>
@@ -792,30 +751,9 @@ export default function WebsiteDetailPage() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <div className="w-full flex justify-between text-sm text-muted-foreground">
-                    <span>
-                      Average:{" "}
-                      <span className="font-medium text-primary">
-                        {Math.round(
-                          website.performanceHistory.reduce((acc, data) => acc + data.responseTime, 0) /
-                            website.performanceHistory.length,
-                        )}
-                        ms
-                      </span>
-                    </span>
-                    <span>
-                      Min:{" "}
-                      <span className="font-medium text-green-500">
-                        {Math.min(...website.performanceHistory.map((data) => data.responseTime))}ms
-                      </span>
-                    </span>
-                    <span>
-                      Max:{" "}
-                      <span className="font-medium text-amber-500">
-                        {Math.max(...website.performanceHistory.map((data) => data.responseTime))}ms
-                      </span>
-                    </span>
-                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Lower response times indicate better website performance.
+                  </p>
                 </CardFooter>
               </Card>
             </motion.div>
@@ -830,15 +768,15 @@ export default function WebsiteDetailPage() {
             >
               <Card className="border-0 bg-transparent">
                 <CardHeader>
-                  <CardTitle>Uptime History</CardTitle>
-                  <CardDescription>Daily uptime percentage</CardDescription>
+                  <CardTitle>Uptime Statistics</CardTitle>
+                  <CardDescription>Daily uptime percentages</CardDescription>
                 </CardHeader>
                 <CardContent className="h-[400px]">
                   <div className="h-full w-full">
                     <div className="h-full w-full flex flex-col">
                       <div className="flex-1 relative">
                         <div className="absolute inset-0 flex items-end">
-                          {website.uptimeHistory.map((data, index) => (
+                          {uptimeHistory.map((data, index) => (
                             <div key={index} className="flex-1 flex flex-col items-center justify-end h-full">
                               <motion.div
                                 className="w-full mx-[1px] rounded-t-sm"
@@ -849,7 +787,8 @@ export default function WebsiteDetailPage() {
                                 }}
                                 style={{
                                   backgroundColor:
-                                    data.uptime < 99 ? "hsla(var(--destructive)/0.6)" : "hsla(var(--primary)/0.6)",
+                                    data.uptime < 95 ? "hsla(var(--destructive)/0.7)" :
+                                    data.uptime < 99 ? "hsla(var(--warning)/0.7)" : "hsla(var(--success)/0.7)",
                                 }}
                                 whileHover={{
                                   scale: 1.05,
@@ -867,23 +806,11 @@ export default function WebsiteDetailPage() {
                             </div>
                           ))}
                         </div>
-
-                        {/* Y-axis labels */}
-                        <div className="absolute inset-y-0 left-0 flex flex-col justify-between pointer-events-none">
-                          <div className="text-xs text-muted-foreground">100%</div>
-                          <div className="text-xs text-muted-foreground">50%</div>
-                          <div className="text-xs text-muted-foreground">0%</div>
-                        </div>
-
-                        {/* 99.9% line */}
-                        <div className="absolute w-full h-[0.5px] bg-muted-foreground/30 top-[0.1%]">
-                          <div className="absolute -top-3 right-0 text-xs text-muted-foreground">99.9%</div>
-                        </div>
                       </div>
                       <div className="h-6 flex">
-                        {website.uptimeHistory.map((data, index) => (
+                        {uptimeHistory.map((data, index) => (
                           <div key={index} className="flex-1 text-xs text-center text-muted-foreground">
-                            {data.date.split("-")[2]}
+                            {index % 2 === 0 ? format(new Date(data.date), 'MMM dd') : ""}
                           </div>
                         ))}
                       </div>
@@ -891,26 +818,19 @@ export default function WebsiteDetailPage() {
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <div className="w-full flex justify-between text-sm text-muted-foreground">
-                    <span>
-                      Average:{" "}
-                      <span className="font-medium text-primary">
-                        {(
-                          website.uptimeHistory.reduce((acc, data) => acc + data.uptime, 0) /
-                          website.uptimeHistory.length
-                        ).toFixed(2)}
-                        %
-                      </span>
-                    </span>
-                    <span>
-                      Min:{" "}
-                      <span className="font-medium text-amber-500">
-                        {Math.min(...website.uptimeHistory.map((data) => data.uptime))}%
-                      </span>
-                    </span>
-                    <span>
-                      SLA: <span className="font-medium text-green-500">99.9%</span>
-                    </span>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-success mr-2"></div>
+                      <span className="text-xs">99-100%</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-warning mr-2"></div>
+                      <span className="text-xs">95-99%</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 rounded-full bg-destructive mr-2"></div>
+                      <span className="text-xs">&lt;95%</span>
+                    </div>
                   </div>
                 </CardFooter>
               </Card>
@@ -927,66 +847,61 @@ export default function WebsiteDetailPage() {
               <Card className="border-0 bg-transparent">
                 <CardHeader>
                   <CardTitle>Error Log</CardTitle>
-                  <CardDescription>Recent errors and incidents</CardDescription>
+                  <CardDescription>Recent downtime and error events</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {website.recentErrors.length === 0 ? (
-                    <motion.div
-                      className="text-center py-8"
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.5 }}
-                    >
-                      <Check className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                      <p className="text-muted-foreground">No errors recorded in the last 30 days</p>
-                    </motion.div>
-                  ) : (
+                  {errorLog.length > 0 ? (
                     <div className="space-y-4">
-                      {website.recentErrors.map((error, index) => (
+                      {errorLog.map((error, index) => (
                         <motion.div
                           key={index}
-                          className="flex items-start gap-4 rounded-lg border p-4 transition-all hover:bg-muted/50"
+                          className="p-4 rounded-lg border border-border bg-background/80 hover:bg-muted/50 transition-colors"
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.3, delay: index * 0.1 }}
-                          whileHover={{
-                            scale: 1.01,
-                            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
-                            transition: { duration: 0.2 },
-                          }}
+                          transition={{ duration: 0.3, delay: index * 0.05 }}
                         >
-                          <div className="mt-0.5">
-                            <div className="rounded-full bg-destructive/20 p-1">
-                              <AlertCircle className="h-4 w-4 text-destructive" />
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-3">
+                              <div className="mt-0.5">
+                                <AlertCircle className="h-5 w-5 text-destructive" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{error.message}</p>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {error.date}
+                                </p>
+                              </div>
                             </div>
+                            <Badge
+                              variant="outline"
+                              className={error.duration === 'Ongoing' ? 'bg-destructive/10 text-destructive' : 'bg-muted'}
+                            >
+                              {error.duration}
+                            </Badge>
                           </div>
-                          <div className="flex-1 space-y-1">
-                            <div className="flex items-center justify-between">
-                              <p className="text-sm font-medium">{error.message}</p>
-                              <span className="text-xs text-muted-foreground">{error.date}</span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">Duration: {error.duration}</p>
-                          </div>
-                          <Button variant="ghost" size="icon" className="hover:bg-muted">
-                            <ArrowUpRight className="h-4 w-4" />
-                          </Button>
                         </motion.div>
                       ))}
                     </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <div className="rounded-full bg-green-500/10 p-3 mb-4">
+                        <Check className="h-6 w-6 text-green-500" />
+                      </div>
+                      <h3 className="text-lg font-medium">No errors detected</h3>
+                      <p className="text-sm text-muted-foreground max-w-md mt-1">
+                        Your website has been operating without any detected errors or downtime events.
+                      </p>
+                    </div>
                   )}
                 </CardContent>
-                <CardFooter>
-                  <Button
-                    variant="outline"
-                    className="w-full transition-all hover:bg-muted hover:border-primary/30"
-                    whileHover={{
-                      scale: 1.02,
-                      transition: { duration: 0.2 },
-                    }}
-                  >
-                    View Full Error History
-                  </Button>
-                </CardFooter>
+                {errorLog.length > 0 && (
+                  <CardFooter>
+                    <Button variant="outline" className="w-full">
+                      <ArrowUpRight className="h-4 w-4 mr-2" />
+                      View All Errors
+                    </Button>
+                  </CardFooter>
+                )}
               </Card>
             </motion.div>
           </TabsContent>
@@ -995,4 +910,3 @@ export default function WebsiteDetailPage() {
     </motion.div>
   )
 }
-

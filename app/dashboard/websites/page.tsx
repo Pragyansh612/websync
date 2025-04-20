@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -41,128 +41,223 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { motion, AnimatePresence } from "framer-motion"
+import { supabase } from "@/lib/supabaseClient"
+import { useRouter } from "next/navigation"
 
-// Sample data for websites
-const websites = [
-  {
-    id: 1,
-    name: "Main Website",
-    url: "https://example.com",
-    status: "up",
-    uptime: "99.98%",
-    responseTime: "124ms",
-    lastChecked: "2 minutes ago",
-    errors: 0,
-    checkFrequency: "1 minute",
-    monitoringLocations: ["US East", "Europe"],
-    dateAdded: "2023-12-15",
-  },
-  {
-    id: 2,
-    name: "API Service",
-    url: "https://api.example.com",
-    status: "up",
-    uptime: "99.95%",
-    responseTime: "89ms",
-    lastChecked: "1 minute ago",
-    errors: 0,
-    checkFrequency: "30 seconds",
-    monitoringLocations: ["US East", "US West", "Asia"],
-    dateAdded: "2023-12-20",
-  },
-  {
-    id: 3,
-    name: "Customer Portal",
-    url: "https://portal.example.com",
-    status: "up",
-    uptime: "99.90%",
-    responseTime: "156ms",
-    lastChecked: "3 minutes ago",
-    errors: 2,
-    checkFrequency: "1 minute",
-    monitoringLocations: ["US East", "Europe"],
-    dateAdded: "2024-01-05",
-  },
-  {
-    id: 4,
-    name: "Documentation",
-    url: "https://docs.example.com",
-    status: "down",
-    uptime: "98.45%",
-    responseTime: "0ms",
-    lastChecked: "5 minutes ago",
-    errors: 1,
-    checkFrequency: "5 minutes",
-    monitoringLocations: ["US East", "US West"],
-    dateAdded: "2024-01-10",
-  },
-  {
-    id: 5,
-    name: "Blog",
-    url: "https://blog.example.com",
-    status: "up",
-    uptime: "99.99%",
-    responseTime: "110ms",
-    lastChecked: "2 minutes ago",
-    errors: 0,
-    checkFrequency: "5 minutes",
-    monitoringLocations: ["US East", "Europe"],
-    dateAdded: "2024-01-15",
-  },
-  {
-    id: 6,
-    name: "E-commerce Store",
-    url: "https://store.example.com",
-    status: "degraded",
-    uptime: "99.80%",
-    responseTime: "320ms",
-    lastChecked: "1 minute ago",
-    errors: 3,
-    checkFrequency: "30 seconds",
-    monitoringLocations: ["US East", "US West", "Europe", "Asia"],
-    dateAdded: "2024-01-20",
-  },
-]
+// Define the Website type based on your database schema
+interface Website {
+  id: string
+  user_id: string
+  url: string
+  name: string
+  status: string
+  monitoring_interval: number
+  created_at: string
+  last_checked_at: string | null
+  uptime?: string
+  responseTime?: string
+}
+
+interface WebsiteCheckData {
+  avg_response_time: number
+  uptime_percentage: number
+  total_checks: number
+  is_up: boolean
+}
 
 export default function WebsitesPage() {
+  const [websites, setWebsites] = useState<Website[]>([])
+  const [websiteStats, setWebsiteStats] = useState<Map<string, WebsiteCheckData>>(new Map())
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [websiteToDelete, setWebsiteToDelete] = useState<number | null>(null)
+  const [websiteToDelete, setWebsiteToDelete] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState("name")
   const [sortOrder, setSortOrder] = useState("asc")
   const { toast } = useToast()
+  const router = useRouter()
 
-  const handleRefresh = () => {
-    setIsRefreshing(true)
-    // Simulate refresh
-    setTimeout(() => {
-      setIsRefreshing(false)
+  // Fetch websites from the database
+  useEffect(() => {
+    fetchWebsites()
+  }, [])
+
+  const fetchWebsites = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      router.push('/login')
+      return
+    }
+    try {
+      setIsLoading(true)
+      const { data: websiteData, error } = await supabase
+        .from('websites')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+
+      if (error) {
+        throw error
+      }
+
+      if (websiteData) {
+        setWebsites(websiteData)
+
+        // Fetch stats for each website
+        const statsMap = new Map<string, WebsiteCheckData>()
+
+        for (const website of websiteData) {
+          // Get statistics from website_checks for each website
+          const { data: checksData, error: checksError } = await supabase
+            .from('website_checks')
+            .select('response_time_ms, is_up, status_code')
+            .eq('website_id', website.id)
+            .order('timestamp', { ascending: false })
+            .limit(100)
+
+          if (checksError) {
+            console.error('Error fetching website checks:', checksError)
+            continue
+          }
+
+          if (checksData && checksData.length > 0) {
+            // Calculate average response time
+            const totalResponseTime = checksData.reduce((sum, check) =>
+              sum + (check.response_time_ms || 0), 0)
+            const avgResponseTime = checksData.length > 0 ?
+              Math.round(totalResponseTime / checksData.length) : 0
+
+            // Calculate uptime percentage
+            const upChecks = checksData.filter(check => check.is_up === true).length
+            const uptimePercentage = checksData.length > 0 ?
+              ((upChecks / checksData.length) * 100).toFixed(2) : "100.00"
+
+            // Get latest status
+            const latestCheck = checksData[0]
+            const isCurrentlyUp = latestCheck?.is_up || false
+
+            statsMap.set(website.id, {
+              avg_response_time: avgResponseTime,
+              uptime_percentage: parseFloat(uptimePercentage),
+              total_checks: checksData.length,
+              is_up: isCurrentlyUp
+            })
+          } else {
+            // No checks data, set defaults
+            statsMap.set(website.id, {
+              avg_response_time: 0,
+              uptime_percentage: 100,
+              total_checks: 0,
+              is_up: true
+            })
+          }
+        }
+
+        setWebsiteStats(statsMap)
+      }
+    } catch (error) {
+      console.error('Error fetching websites:', error)
       toast({
-        title: "Websites Refreshed",
-        description: "All website data has been updated.",
-        duration: 3000,
+        title: "Error",
+        description: "Failed to fetch websites",
+        variant: "destructive",
       })
-    }, 1000)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const handleDeleteWebsite = (id: number) => {
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await fetchWebsites()
+    setIsRefreshing(false)
+    toast({
+      title: "Websites Refreshed",
+      description: "All website data has been updated.",
+      duration: 3000,
+    })
+  }
+
+  const handleDeleteWebsite = (id: string) => {
     setWebsiteToDelete(id)
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
+    if (!websiteToDelete) return
+
     setIsDeleting(true)
-    // Simulate deletion
-    setTimeout(() => {
-      setIsDeleting(false)
-      setWebsiteToDelete(null)
+    try {
+      // Delete all related records first to maintain referential integrity
+
+      // Delete route_checks related to website routes
+      const { data: routeData } = await supabase
+        .from('website_routes')
+        .select('id')
+        .eq('website_id', websiteToDelete)
+
+      if (routeData && routeData.length > 0) {
+        const routeIds = routeData.map(route => route.id)
+
+        // Delete route checks for these routes
+        await supabase
+          .from('route_checks')
+          .delete()
+          .in('route_id', routeIds)
+      }
+
+      // Delete website routes
+      await supabase
+        .from('website_routes')
+        .delete()
+        .eq('website_id', websiteToDelete)
+
+      // Delete website checks
+      await supabase
+        .from('website_checks')
+        .delete()
+        .eq('website_id', websiteToDelete)
+
+      // Delete monitoring_logs
+      await supabase
+        .from('monitoring_logs')
+        .delete()
+        .eq('website_id', websiteToDelete)
+
+      // Delete alerts
+      await supabase
+        .from('alerts')
+        .delete()
+        .eq('website_id', websiteToDelete)
+
+      // Finally delete the website
+      const { error } = await supabase
+        .from('websites')
+        .delete()
+        .eq('id', websiteToDelete)
+
+      if (error) throw error
+
+      // Update the UI by removing the deleted website
+      setWebsites(websites.filter(website => website.id !== websiteToDelete))
+
       toast({
         title: "Website Deleted",
         description: "The website has been removed from monitoring.",
         duration: 3000,
       })
-    }, 1000)
+    } catch (error) {
+      console.error('Error deleting website:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete website",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+      setWebsiteToDelete(null)
+    }
   }
 
   const toggleSort = (column: string) => {
@@ -174,28 +269,53 @@ export default function WebsitesPage() {
     }
   }
 
+  // Helper function to get website status from stats
+  const getWebsiteStatus = (websiteId: string): 'up' | 'down' | 'degraded' => {
+    const stats = websiteStats.get(websiteId)
+
+    if (!stats) return 'up'
+
+    if (!stats.is_up) return 'down'
+
+    if (stats.uptime_percentage < 99.5 || stats.avg_response_time > 300) {
+      return 'degraded'
+    }
+
+    return 'up'
+  }
+
   // Filter and sort websites
   const filteredWebsites = websites
     .filter((website) => {
+      const currentStatus = getWebsiteStatus(website.id)
       const matchesSearch =
-        website.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        website.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         website.url.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesStatus = statusFilter === "all" || website.status === statusFilter
+
+      const matchesStatus = statusFilter === "all" || currentStatus === statusFilter
       return matchesSearch && matchesStatus
     })
     .sort((a, b) => {
       let comparison = 0
+      const statusA = getWebsiteStatus(a.id)
+      const statusB = getWebsiteStatus(b.id)
+      const statsA = websiteStats.get(a.id)
+      const statsB = websiteStats.get(b.id)
 
       if (sortBy === "name") {
-        comparison = a.name.localeCompare(b.name)
+        comparison = (a.name || '').localeCompare(b.name || '')
       } else if (sortBy === "status") {
-        comparison = a.status.localeCompare(b.status)
+        comparison = statusA.localeCompare(statusB)
       } else if (sortBy === "uptime") {
-        comparison = Number.parseFloat(a.uptime) - Number.parseFloat(b.uptime)
+        const uptimeA = statsA?.uptime_percentage || 100
+        const uptimeB = statsB?.uptime_percentage || 100
+        comparison = uptimeA - uptimeB
       } else if (sortBy === "responseTime") {
-        comparison = Number.parseInt(a.responseTime) - Number.parseInt(b.responseTime)
+        const responseTimeA = statsA?.avg_response_time || 0
+        const responseTimeB = statsB?.avg_response_time || 0
+        comparison = responseTimeA - responseTimeB
       } else if (sortBy === "dateAdded") {
-        comparison = new Date(a.dateAdded).getTime() - new Date(b.dateAdded).getTime()
+        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       }
 
       return sortOrder === "asc" ? comparison : -comparison
@@ -218,6 +338,27 @@ export default function WebsitesPage() {
       y: 0,
       transition: { duration: 0.4, ease: "easeOut" },
     },
+  }
+
+  const formatCheckFrequency = (seconds: number): string => {
+    if (seconds < 60) return `${seconds} seconds`
+    if (seconds === 60) return "1 minute"
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes`
+    if (seconds === 3600) return "1 hour"
+    return `${Math.floor(seconds / 3600)} hours`
+  }
+
+  const formatTimeSince = (dateStr: string | null): string => {
+    if (!dateStr) return "Never"
+
+    const date = new Date(dateStr)
+    const now = new Date()
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+    if (seconds < 60) return `${seconds} seconds ago`
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`
+    return `${Math.floor(seconds / 86400)} days ago`
   }
 
   return (
@@ -356,7 +497,16 @@ export default function WebsitesPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredWebsites.length === 0 ? (
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-4">
+                        <div className="flex justify-center items-center space-x-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Loading websites...</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredWebsites.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-4">
                         No websites found matching your criteria
@@ -364,99 +514,106 @@ export default function WebsitesPage() {
                     </TableRow>
                   ) : (
                     <AnimatePresence>
-                      {filteredWebsites.map((website, index) => (
-                        <motion.tr
-                          key={website.id}
-                          className="hover:bg-primary/5 transition-colors"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          transition={{ duration: 0.3, delay: index * 0.05 }}
-                          whileHover={{ backgroundColor: "rgba(var(--primary), 0.1)" }}
-                        >
-                          <TableCell className="font-medium">
-                            <div className="flex flex-col">
-                              <span>{website.name}</span>
-                              <span className="text-xs text-muted-foreground">{website.url}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                website.status === "up"
-                                  ? "outline"
-                                  : website.status === "down"
-                                    ? "destructive"
-                                    : "secondary"
-                              }
-                              className={
-                                website.status === "up"
-                                  ? "bg-green-500/10 text-green-500 hover:bg-green-500/20 hover:text-green-500"
-                                  : website.status === "down"
-                                    ? ""
-                                    : "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 hover:text-yellow-500"
-                              }
-                            >
-                              <span className="flex items-center gap-1">
-                                {website.status === "up" ? (
-                                  <Check className="h-3 w-3" />
-                                ) : website.status === "down" ? (
-                                  <X className="h-3 w-3" />
-                                ) : (
-                                  <AlertCircle className="h-3 w-3" />
-                                )}
-                                {website.status.charAt(0).toUpperCase() + website.status.slice(1)}
-                              </span>
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{website.uptime}</TableCell>
-                          <TableCell>{website.responseTime}</TableCell>
-                          <TableCell>{website.checkFrequency}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="icon" asChild className="hover:bg-primary/10">
-                                <Link href={`/dashboard/website/${website.id}`}>
-                                  <ArrowUpRight className="h-4 w-4" />
-                                  <span className="sr-only">View Details</span>
-                                </Link>
-                              </Button>
-                              <Button variant="ghost" size="icon" asChild className="hover:bg-primary/10">
-                                <a href={website.url} target="_blank" rel="noopener noreferrer">
-                                  <ExternalLink className="h-4 w-4" />
-                                  <span className="sr-only">Visit Website</span>
-                                </a>
-                              </Button>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="hover:bg-primary/10">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="animate-in fade-in-50 zoom-in-95">
-                                  <DropdownMenuItem className="cursor-pointer">
-                                    <RefreshCw className="mr-2 h-4 w-4" />
-                                    <span>Refresh Status</span>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem asChild>
-                                    <Link href={`/dashboard/website/${website.id}/settings`} className="cursor-pointer">
-                                      <Settings className="mr-2 h-4 w-4" />
-                                      <span>Edit Settings</span>
-                                    </Link>
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    className="text-destructive focus:text-destructive cursor-pointer"
-                                    onClick={() => handleDeleteWebsite(website.id)}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    <span>Remove</span>
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </TableCell>
-                        </motion.tr>
-                      ))}
+                      {filteredWebsites.map((website, index) => {
+                        const stats = websiteStats.get(website.id)
+                        const status = getWebsiteStatus(website.id)
+                        const uptimePercentage = stats ? `${stats.uptime_percentage.toFixed(2)}%` : "100.00%"
+                        const responseTime = stats ? `${stats.avg_response_time}ms` : "0ms"
+
+                        return (
+                          <motion.tr
+                            key={website.id}
+                            className="hover:bg-primary/5 transition-colors"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.3, delay: index * 0.05 }}
+                            whileHover={{ backgroundColor: "rgba(var(--primary), 0.1)" }}
+                          >
+                            <TableCell className="font-medium">
+                              <div className="flex flex-col">
+                                <span>{website.name || "Unnamed Website"}</span>
+                                <span className="text-xs text-muted-foreground">{website.url}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  status === "up"
+                                    ? "outline"
+                                    : status === "down"
+                                      ? "destructive"
+                                      : "secondary"
+                                }
+                                className={
+                                  status === "up"
+                                    ? "bg-green-500/10 text-green-500 hover:bg-green-500/20 hover:text-green-500"
+                                    : status === "down"
+                                      ? ""
+                                      : "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 hover:text-yellow-500"
+                                }
+                              >
+                                <span className="flex items-center gap-1">
+                                  {status === "up" ? (
+                                    <Check className="h-3 w-3" />
+                                  ) : status === "down" ? (
+                                    <X className="h-3 w-3" />
+                                  ) : (
+                                    <AlertCircle className="h-3 w-3" />
+                                  )}
+                                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                                </span>
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{uptimePercentage}</TableCell>
+                            <TableCell>{responseTime}</TableCell>
+                            <TableCell>{formatCheckFrequency(website.monitoring_interval)}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="icon" asChild className="hover:bg-primary/10">
+                                  <Link href={`/dashboard/website/${website.id}`}>
+                                    <ArrowUpRight className="h-4 w-4" />
+                                    <span className="sr-only">View Details</span>
+                                  </Link>
+                                </Button>
+                                <Button variant="ghost" size="icon" asChild className="hover:bg-primary/10">
+                                  <a href={website.url} target="_blank" rel="noopener noreferrer">
+                                    <ExternalLink className="h-4 w-4" />
+                                    <span className="sr-only">Visit Website</span>
+                                  </a>
+                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="hover:bg-primary/10">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="animate-in fade-in-50 zoom-in-95">
+                                    <DropdownMenuItem className="cursor-pointer" onClick={handleRefresh}>
+                                      <RefreshCw className="mr-2 h-4 w-4" />
+                                      <span>Refresh Status</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                      <Link href={`/dashboard/website/${website.id}/settings`} className="cursor-pointer">
+                                        <Settings className="mr-2 h-4 w-4" />
+                                        <span>Edit Settings</span>
+                                      </Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive cursor-pointer"
+                                      onClick={() => handleDeleteWebsite(website.id)}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      <span>Remove</span>
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </TableCell>
+                          </motion.tr>
+                        )
+                      })}
                     </AnimatePresence>
                   )}
                 </TableBody>
@@ -503,4 +660,3 @@ export default function WebsitesPage() {
     </motion.div>
   )
 }
-

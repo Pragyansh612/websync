@@ -10,42 +10,55 @@
     --card-foreground: 0 0% 2%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 2%;
-    --primary: 0 0% 0%;
+    --primary: 215 25% 27%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 2%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 2%;
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 215 25% 27%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 25% 40%;
+    --accent: 210 20% 96%;
+    --accent-foreground: 215 25% 27%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 0 0% 2%;
+    --border: 215 25% 90%;
+    --input: 215 25% 90%;
+    --ring: 215 25% 27%;
     --radius: 0.5rem;
+
+    --accent-slate: 215 25% 27%;
+    --accent-teal: 180 70% 45%;
   }
 
   .dark {
-    --background: 0 0% 2%;
-    --foreground: 0 0% 100%;
-    --card: 0 0% 5%;
-    --card-foreground: 0 0% 100%;
-    --popover: 0 0% 5%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 0 0% 100%;
-    --primary-foreground: 0 0% 2%;
-    --secondary: 0 0% 11%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 11%;
-    --muted-foreground: 0 0% 70%;
-    --accent: 0 0% 11%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 0 0% 83.9%;
+    /* Enhanced dark mode colors for futuristic feel */
+    --background: 220 30% 8%;
+    --foreground: 210 20% 98%;
+    --card: 220 25% 10%;
+    --card-foreground: 210 20% 98%;
+    --popover: 220 25% 10%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 210 80% 60%;
+    --primary-foreground: 220 25% 8%;
+    --secondary: 220 30% 16%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 220 30% 16%;
+    --muted-foreground: 210 20% 80%;
+    --accent: 220 70% 20%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 70% 42%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 220 30% 18%;
+    --input: 220 30% 18%;
+    --ring: 210 80% 60%;
+
+    --accent-slate: 210 80% 70%;
+    --accent-teal: 176 80% 55%;
+    
+    /* Futuristic dark mode specific colors */
+    --glow-blue: 210 100% 60%;
+    --glow-cyan: 180 100% 60%;
+    --grid-lines: 220 30% 30%;
+    --component-spacing: 1.5rem;
   }
 }
 
@@ -55,11 +68,27 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Performance optimization */
+    text-rendering: optimizeSpeed;
+    -webkit-font-smoothing: antialiased;
+  }
+  
+  /* Optimize component spacing in dark mode */
+  .dark main > section,
+  .dark main > div {
+    margin-bottom: var(--component-spacing);
+  }
+  
+  /* Improve performance with hardware acceleration where needed */
+  .transform-gpu {
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
   }
 }
 
 @layer components {
-  /* Premium Glassmorphism Styles */
+  /* Premium Glassmorphism Styles - Enhanced for dark mode */
   .premium-glass-card {
     @apply bg-white/10 dark:bg-black/20 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-lg;
     position: relative;
@@ -67,9 +96,21 @@
     transition: all 0.3s ease;
   }
 
+  .dark .premium-glass-card {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
   .premium-glass-card:hover {
     @apply bg-white/15 dark:bg-black/25 border-white/30 dark:border-white/15 shadow-xl;
     transform: translateY(-5px);
+  }
+  
+  .dark .premium-glass-card:hover {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), 
+                0 0 15px rgba(var(--glow-blue), 0.2);
   }
 
   .premium-gradient-border {
@@ -89,280 +130,36 @@
     -webkit-mask-composite: xor;
     pointer-events: none;
   }
+  
+  .dark .premium-gradient-border::before {
+    background: linear-gradient(45deg, 
+      hsl(var(--glow-blue) / 0.3), 
+      hsl(var(--glow-cyan) / 0.2), 
+      hsl(var(--glow-blue) / 0.3));
+    animation: borderGlow 4s ease infinite;
+  }
 
   /* Premium Glass Form Elements */
   .premium-glass-element {
     @apply bg-white/5 dark:bg-black/20 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-sm transition-all;
   }
 
+  .dark .premium-glass-element {
+    background: rgba(15, 23, 42, 0.7);
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+
   .premium-glass-element:focus,
   .premium-glass-element:focus-visible {
     @apply border-primary/50 ring-1 ring-primary/30 bg-white/10 dark:bg-black/30;
   }
-
-  /* Premium Buttons */
-  .premium-button {
-    @apply bg-black dark:bg-white text-white dark:text-black border-transparent backdrop-blur-md transition-all;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  
+  .dark .premium-glass-element:focus,
+  .dark .premium-glass-element:focus-visible {
+    box-shadow: 0 0 0 2px rgba(var(--glow-blue), 0.3);
   }
 
-  .premium-button:hover {
-    @apply bg-black/90 dark:bg-white/90;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-  }
-
-  .premium-button-outline {
-    @apply bg-transparent backdrop-blur-md border border-black/30 dark:border-white/30 text-black dark:text-white transition-all;
-  }
-
-  .premium-button-outline:hover {
-    @apply bg-black/5 dark:bg-white/5 border-black/50 dark:border-white/50;
-    transform: translateY(-2px);
-  }
-
-  /* Premium Gradient Text */
-  .premium-gradient-text {
-    @apply bg-gradient-to-r from-black to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent;
-  }
-
-  /* Background Gradients */
-  .premium-bg-gradient {
-    @apply bg-gradient-to-br from-white to-gray-100 dark:from-gray-900 dark:to-black;
-  }
-
-  /* Premium Button Shine Effect */
-  .premium-btn-shine {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .premium-btn-shine::after {
-    content: "";
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(
-      to right,
-      rgba(255, 255, 255, 0) 0%,
-      rgba(255, 255, 255, 0.2) 50%,
-      rgba(255, 255, 255, 0) 100%
-    );
-    transform: rotate(30deg);
-    animation: premiumShine 6s infinite linear;
-    pointer-events: none;
-  }
-
-  @keyframes premiumShine {
-    0% {
-      transform: translateX(-100%) rotate(30deg);
-    }
-    100% {
-      transform: translateX(100%) rotate(30deg);
-    }
-  }
-
-  /* Premium Wave Animation */
-  .premium-wave {
-    height: 40px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .premium-wave::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(
-      90deg,
-      rgba(0, 0, 0, 0.05) 0%,
-      rgba(0, 0, 0, 0.1) 20%,
-      rgba(0, 0, 0, 0.05) 40%,
-      rgba(0, 0, 0, 0.1) 60%,
-      rgba(0, 0, 0, 0.05) 80%,
-      rgba(0, 0, 0, 0.1) 100%
-    );
-    background-size: 200% 100%;
-    animation: premiumWave 2s infinite linear;
-  }
-
-  .dark .premium-wave::before {
-    background: linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.05) 0%,
-      rgba(255, 255, 255, 0.1) 20%,
-      rgba(255, 255, 255, 0.05) 40%,
-      rgba(255, 255, 255, 0.1) 60%,
-      rgba(255, 255, 255, 0.05) 80%,
-      rgba(255, 255, 255, 0.1) 100%
-    );
-  }
-
-  @keyframes premiumWave {
-    0% {
-      background-position: 0% 0;
-    }
-    100% {
-      background-position: 200% 0;
-    }
-  }
-
-  /* Futuristic UI Elements */
-  .futuristic-border {
-    position: relative;
-    z-index: 0;
-  }
-
-  .futuristic-border::before {
-    content: "";
-    position: absolute;
-    z-index: -1;
-    inset: -1px;
-    border-radius: calc(var(--radius) + 1px);
-    background: linear-gradient(45deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05));
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask-composite: exclude;
-    -webkit-mask-composite: xor;
-    pointer-events: none;
-  }
-
-  .futuristic-button {
-    @apply bg-black dark:bg-white text-white dark:text-black border-transparent backdrop-blur-md transition-all;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
-    position: relative;
-    overflow: hidden;
-    z-index: 1;
-  }
-
-  .futuristic-button::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(45deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
-    z-index: -1;
-    transition: all 0.3s ease;
-  }
-
-  .futuristic-button:hover {
-    @apply bg-black/90 dark:bg-white/90;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-  }
-
-  .futuristic-button:hover::before {
-    background: linear-gradient(45deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0));
-  }
-
-  .neon-glow {
-    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5), 0 0 10px rgba(255, 255, 255, 0.3);
-  }
-
-  .dark .neon-glow {
-    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5), 0 0 10px rgba(255, 255, 255, 0.3), 0 0 15px rgba(255, 255, 255, 0.2);
-  }
-
-  .glitch-text {
-    position: relative;
-  }
-
-  .glitch-text::before,
-  .glitch-text::after {
-    content: attr(data-text);
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0.8;
-  }
-
-  .glitch-text::before {
-    animation: glitch-animation 3s infinite linear alternate-reverse;
-    clip: rect(44px, 450px, 56px, 0);
-    text-shadow: -2px 0 #ff00c1;
-  }
-
-  .glitch-text::after {
-    animation: glitch-animation 2s infinite linear alternate-reverse;
-    clip: rect(44px, 450px, 56px, 0);
-    text-shadow: 2px 0 #00fff9;
-  }
-
-  @keyframes glitch-animation {
-    0% {
-      clip: rect(44px, 450px, 56px, 0);
-    }
-    5% {
-      clip: rect(74px, 450px, 86px, 0);
-    }
-    10% {
-      clip: rect(98px, 450px, 106px, 0);
-    }
-    15% {
-      clip: rect(114px, 450px, 126px, 0);
-    }
-    20% {
-      clip: rect(134px, 450px, 146px, 0);
-    }
-    25% {
-      clip: rect(154px, 450px, 166px, 0);
-    }
-    30% {
-      clip: rect(174px, 450px, 186px, 0);
-    }
-    35% {
-      clip: rect(194px, 450px, 206px, 0);
-    }
-    40% {
-      clip: rect(214px, 450px, 226px, 0);
-    }
-    45% {
-      clip: rect(234px, 450px, 246px, 0);
-    }
-    50% {
-      clip: rect(254px, 450px, 266px, 0);
-    }
-    55% {
-      clip: rect(274px, 450px, 286px, 0);
-    }
-    60% {
-      clip: rect(294px, 450px, 306px, 0);
-    }
-    65% {
-      clip: rect(314px, 450px, 326px, 0);
-    }
-    70% {
-      clip: rect(334px, 450px, 346px, 0);
-    }
-    75% {
-      clip: rect(354px, 450px, 366px, 0);
-    }
-    80% {
-      clip: rect(374px, 450px, 386px, 0);
-    }
-    85% {
-      clip: rect(394px, 450px, 406px, 0);
-    }
-    90% {
-      clip: rect(414px, 450px, 426px, 0);
-    }
-    95% {
-      clip: rect(434px, 450px, 446px, 0);
-    }
-    100% {
-      clip: rect(454px, 450px, 466px, 0);
-    }
-  }
-
-  /* Grid lines background */
+  /* Grid lines background - Enhanced for dark mode */
   .grid-lines {
     background-image: linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
       linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
@@ -370,11 +167,12 @@
   }
 
   .dark .grid-lines {
-    background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-image: linear-gradient(to right, hsl(var(--grid-lines) / 0.1) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--grid-lines) / 0.1) 1px, transparent 1px);
+    background-size: 30px 30px;
   }
 
-  /* Scan line effect */
+  /* Scan line effect - Enhanced for dark mode */
   .scan-line::before {
     content: "";
     position: absolute;
@@ -385,6 +183,17 @@
     z-index: 10;
     pointer-events: none;
   }
+  
+  .dark .scan-line::before {
+    background: linear-gradient(90deg, 
+      transparent, 
+      rgba(var(--glow-blue), 0.3), 
+      rgba(var(--glow-cyan), 0.5), 
+      rgba(var(--glow-blue), 0.3), 
+      transparent);
+    height: 1px;
+    box-shadow: 0 0 8px 1px rgba(var(--glow-cyan), 0.5);
+  }
 
   @keyframes scan {
     0% {
@@ -394,29 +203,73 @@
       top: 100%;
     }
   }
-
-  /* Futuristic background */
-  .futuristic-bg {
+  
+  @keyframes borderGlow {
+    0%, 100% {
+      opacity: 0.8;
+    }
+    50% {
+      opacity: 0.3;
+    }
+  }
+  
+  /* New futuristic classes for dark mode */
+  .dark .cyber-panel {
+    background: linear-gradient(135deg, rgba(25, 36, 53, 0.9), rgba(10, 18, 35, 0.95));
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2), 
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
     position: relative;
     overflow: hidden;
   }
-
-  .futuristic-bg::before {
+  
+  .dark .cyber-panel::after {
     content: "";
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    bottom: 0;
-    background: radial-gradient(circle at 10% 20%, rgba(0, 0, 0, 0.02) 0%, transparent 20%),
-      radial-gradient(circle at 90% 80%, rgba(0, 0, 0, 0.02) 0%, transparent 20%),
-      radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.01) 0%, transparent 50%);
-    z-index: -1;
+    height: 1px;
+    background: linear-gradient(90deg, 
+      transparent, 
+      rgba(59, 130, 246, 0.3), 
+      transparent);
   }
+  
+  .dark .tech-shadow {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2),
+                0 0 10px rgba(var(--glow-blue), 0.1);
+  }
+  
+  /* Component spacing optimization */
+  .component-grid {
+    display: grid;
+    gap: 1rem;
+  }
+  
+  .dark .component-grid {
+    gap: 1.25rem;  /* Tighter spacing in dark mode */
+  }
+}
 
-  .dark .futuristic-bg::before {
-    background: radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.02) 0%, transparent 20%),
-      radial-gradient(circle at 90% 80%, rgba(255, 255, 255, 0.02) 0%, transparent 20%),
-      radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.01) 0%, transparent 50%);
+/* Performance optimizations */
+@media (prefers-reduced-motion: no-preference) {
+  /* Use efficient properties for animations */
+  .animate-gpu {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
   }
+}
+
+/* Add contain property for performance optimization */
+.optimize-paint {
+  contain: content;
+}
+
+/* Component scroll optimization */
+.scroll-optimize {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }

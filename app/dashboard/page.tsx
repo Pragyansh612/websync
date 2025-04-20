@@ -15,111 +15,6 @@ import { useRouter } from "next/navigation"
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import { supabase } from "@/lib/supabaseClient"
 
-// Sample data for the dashboard
-const websites = [
-  {
-    id: 1,
-    name: "Main Website",
-    url: "https://example.com",
-    status: "up",
-    uptime: "99.98%",
-    responseTime: "124ms",
-    lastChecked: "2 minutes ago",
-    errors: 0,
-  },
-  {
-    id: 2,
-    name: "API Service",
-    url: "https://api.example.com",
-    status: "up",
-    uptime: "99.95%",
-    responseTime: "89ms",
-    lastChecked: "1 minute ago",
-    errors: 0,
-  },
-  {
-    id: 3,
-    name: "Customer Portal",
-    url: "https://portal.example.com",
-    status: "up",
-    uptime: "99.90%",
-    responseTime: "156ms",
-    lastChecked: "3 minutes ago",
-    errors: 2,
-  },
-  {
-    id: 4,
-    name: "Documentation",
-    url: "https://docs.example.com",
-    status: "down",
-    uptime: "98.45%",
-    responseTime: "0ms",
-    lastChecked: "5 minutes ago",
-    errors: 1,
-  },
-  {
-    id: 5,
-    name: "Blog",
-    url: "https://blog.example.com",
-    status: "up",
-    uptime: "99.99%",
-    responseTime: "110ms",
-    lastChecked: "2 minutes ago",
-    errors: 0,
-  },
-  {
-    id: 6,
-    name: "E-commerce Store",
-    url: "https://store.example.com",
-    status: "degraded",
-    uptime: "99.80%",
-    responseTime: "320ms",
-    lastChecked: "1 minute ago",
-    errors: 3,
-  },
-]
-
-// Sample data for performance chart
-const performanceData = [
-  { time: "00:00", value: 120 },
-  { time: "02:00", value: 110 },
-  { time: "04:00", value: 125 },
-  { time: "06:00", value: 130 },
-  { time: "08:00", value: 140 },
-  { time: "10:00", value: 135 },
-  { time: "12:00", value: 160 },
-  { time: "14:00", value: 155 },
-  { time: "16:00", value: 170 },
-  { time: "18:00", value: 190 },
-  { time: "20:00", value: 185 },
-  { time: "22:00", value: 130 },
-]
-
-// Sample data for recent alerts
-const recentAlerts = [
-  {
-    id: 1,
-    website: "Documentation",
-    message: "Website is down",
-    time: "5 minutes ago",
-    severity: "critical",
-  },
-  {
-    id: 2,
-    website: "E-commerce Store",
-    message: "High response time detected",
-    time: "15 minutes ago",
-    severity: "warning",
-  },
-  {
-    id: 3,
-    website: "Customer Portal",
-    message: "SSL certificate expires in 7 days",
-    time: "1 hour ago",
-    severity: "info",
-  },
-]
-
 type Website = {
   id: string
   name: string
@@ -182,6 +77,18 @@ export default function DashboardPage() {
     return () => window.removeEventListener("resize", checkIfMobile)
   }, [])
 
+  // Ensure animation happens when we have performance data
+  useEffect(() => {
+    if (performanceData.length > 0) {
+      // Set timeout to allow the component to render first
+      const timer = setTimeout(() => {
+        setAnimateChart(true)
+      }, 500)
+
+      return () => clearTimeout(timer)
+    }
+  }, [performanceData])
+
   const fetchData = async () => {
     setIsLoading(true)
 
@@ -243,7 +150,7 @@ export default function DashboardPage() {
             .order("timestamp", { ascending: false })
             .limit(100)
 
-          const uptimePercentage = uptimeData
+          const uptimePercentage = uptimeData && uptimeData.length > 0
             ? ((uptimeData.filter((check) => check.is_up).length / uptimeData.length) * 100).toFixed(2) + "%"
             : "N/A"
 
@@ -268,9 +175,15 @@ export default function DashboardPage() {
       setWebsites(websitesWithStatus)
     }
 
-    const { data: alertsData, error: alertsError } = await supabase
-      .from("alerts")
-      .select(`
+    if (websitesData) {
+
+      // Get user's website IDs
+      const userWebsiteIds = websitesData.map(website => website.id)
+
+      // Fetch alerts only for the user's websites
+      const { data: alertsData, error: alertsError } = await supabase
+        .from("alerts")
+        .select(`
     id,
     website_id,
     type,
@@ -280,53 +193,75 @@ export default function DashboardPage() {
     is_resolved,
     websites:website_id (name)
   `)
-      .order("created_at", { ascending: false })
-      .limit(5)
+        .in("website_id", userWebsiteIds.length > 0 ? userWebsiteIds : ['no-websites']) // Use dummy value if no websites
+        .order("created_at", { ascending: false })
+        .limit(5)
 
-    if (alertsError) {
-      console.error("Error fetching alerts:", alertsError)
-    } else if (alertsData) {
-      const formattedAlerts = alertsData.map((alert) => {
-        // Fix the TypeScript error by adding proper type checking
-        let websiteName = "Unknown Site"
+      if (alertsError) {
+        console.error("Error fetching alerts:", alertsError)
+      } else if (alertsData && alertsData.length > 0) {
+        const formattedAlerts = alertsData.map((alert) => {
+          // Format code remains the same
+          let websiteName = "Unknown Site"
 
-        // Check if websites exists and handle possible structures
-        if (alert.websites) {
-          if (Array.isArray(alert.websites)) {
-            websiteName = alert.websites.length > 0 && alert.websites[0]?.name ? alert.websites[0].name : "Unknown Site"
-          } else if (typeof alert.websites === "object" && alert.websites !== null) {
-            websiteName = (alert.websites as { name?: string }).name || "Unknown Site"
+          if (alert.websites) {
+            if (Array.isArray(alert.websites)) {
+              websiteName = alert.websites.length > 0 && alert.websites[0]?.name ? alert.websites[0].name : "Unknown Site"
+            } else if (typeof alert.websites === "object" && alert.websites !== null) {
+              websiteName = (alert.websites as { name?: string }).name || "Unknown Site"
+            }
           }
-        }
 
-        return {
-          ...alert,
-          website_name: websiteName,
-        }
-      })
+          return {
+            ...alert,
+            website_name: websiteName,
+          }
+        })
 
-      setRecentAlerts(formattedAlerts)
+        setRecentAlerts(formattedAlerts)
+      } else {
+        setRecentAlerts([])
+      }
     }
 
-    // Fetch performance data for the chart (last 24 hours, hourly)
     const oneDayAgo = new Date()
     oneDayAgo.setDate(oneDayAgo.getDate() - 1)
 
-    const { data: performanceHistoryData, error: performanceError } = await supabase
-      .from("website_checks")
-      .select("timestamp, response_time_ms")
-      .gte("timestamp", oneDayAgo.toISOString())
-      .order("timestamp", { ascending: true })
+    interface PerformanceRecord {
+      timestamp: string;
+      response_time_ms: number | null;
+    }
+
+    let performanceHistoryData: PerformanceRecord[] = []
+    let performanceError = null
+
+    if (websitesData && websitesData.length > 0) {
+      const response = await supabase
+        .from("website_checks")
+        .select("timestamp, response_time_ms")
+        .eq("website_id", websitesData[0].id)
+        .gte("timestamp", oneDayAgo.toISOString())
+        .order("timestamp", { ascending: true })
+
+      performanceHistoryData = response.data || []
+      performanceError = response.error
+    } else {
+      console.log("No websites found to fetch performance data for")
+    }
+
+    console.log(performanceHistoryData)
 
     if (performanceError) {
       console.error("Error fetching performance data:", performanceError)
-    } else if (performanceHistoryData) {
+    } else if (performanceHistoryData && performanceHistoryData.length > 0) {
       // Group by hour and calculate average
       const hourlyData: Record<string, number[]> = {}
 
       performanceHistoryData.forEach((record) => {
-        const hour = new Date(record.timestamp).getHours()
-        const hourString = `${hour}:00`
+        if (!record.response_time_ms) return; // Skip if no response time
+        const date = new Date(record.timestamp);
+        const hour = date.getHours();
+        const hourString = `${hour}:00`;
 
         if (!hourlyData[hourString]) {
           hourlyData[hourString] = []
@@ -334,12 +269,31 @@ export default function DashboardPage() {
         hourlyData[hourString].push(record.response_time_ms)
       })
 
+      // Fill in missing hours with default values
+      for (let i = 0; i < 24; i++) {
+        const hourString = `${i}:00`;
+        if (!hourlyData[hourString]) {
+          hourlyData[hourString] = [100]; // Default value
+        }
+      }
+
       const chartData = Object.entries(hourlyData).map(([time, values]) => ({
         time,
         value: Math.round(values.reduce((sum, val) => sum + val, 0) / values.length),
-      }))
+      })).sort((a, b) => {
+        return parseInt(a.time) - parseInt(b.time);
+      });
 
       setPerformanceData(chartData)
+      setAnimateChart(true) // Make sure chart animates
+    } else {
+      // Generate sample data if no real data is available
+      // const sampleData = Array.from({ length: 24 }, (_, i) => ({
+      //   time: `${i}:00`,
+      //   value: Math.floor(Math.random() * 100) + 50,
+      // }));
+      // setPerformanceData(sampleData);
+      // setAnimateChart(true);
     }
 
     setIsLoading(false)
@@ -588,13 +542,13 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent">
-                {websites.length > 0 && websites.filter((w) => w.status !== "down" && w.response_time_ms).length > 0
+                {websites.length > 0 && websites.some(w => w.response_time_ms && w.response_time_ms > 0)
                   ? Math.round(
-                      websites
-                        .filter((w) => w.status !== "down" && w.response_time_ms)
-                        .reduce((acc, site) => acc + (site.response_time_ms || 0), 0) /
-                        websites.filter((w) => w.status !== "down" && w.response_time_ms).length,
-                    )
+                    websites
+                      .filter((w) => w.status !== "down" && w.response_time_ms && w.response_time_ms > 0)
+                      .reduce((acc, site) => acc + (site.response_time_ms || 0), 0) /
+                    websites.filter((w) => w.status !== "down" && w.response_time_ms && w.response_time_ms > 0).length,
+                  )
                   : 0}
                 ms
               </div>
@@ -788,49 +742,58 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent className="h-[300px] sm:h-[300px]">
                   <div className="h-full w-full">
-                    <div className="h-full w-full flex flex-col">
-                      <div className="flex-1 relative">
-                        {/* Simple chart visualization */}
-                        <div className="absolute inset-0 flex items-end">
-                          {performanceData.map((data, index) => (
-                            <div key={index} className="flex-1 flex flex-col items-center justify-end h-full">
-                              <motion.div
-                                className="w-full bg-gradient-to-t from-primary/80 to-primary/40 mx-[1px] rounded-t-sm"
-                                style={{
-                                  height: animateChart ? `${(data.value / 200) * 100}%` : "0%",
-                                  transitionDelay: `${index * 50}ms`,
-                                }}
-                                initial={{ height: 0 }}
-                                animate={{
-                                  height: animateChart ? `${(data.value / 200) * 100}%` : "0%",
-                                  transition: { duration: 1, delay: index * 0.05 },
-                                }}
-                                whileHover={{
-                                  scale: 1.05,
-                                  backgroundColor: "rgba(var(--primary), 0.8)",
-                                  transition: { duration: 0.2 },
-                                }}
-                              >
+                    {performanceData.length === 0 ? (
+                      <div className="h-full w-full flex items-center justify-center">
+                        <div className="text-center">
+                          <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-4" />
+                          <p className="text-muted-foreground">No performance data available yet</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="h-full w-full flex flex-col">
+                        <div className="flex-1 relative">
+                          {/* Simple chart visualization */}
+                          <div className="absolute inset-0 flex items-end">
+                            {performanceData.map((data, index) => (
+                              <div key={index} className="flex-1 flex flex-col items-center justify-end h-full">
                                 <motion.div
-                                  className="opacity-0 hover:opacity-100 transition-opacity absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs rounded px-2 py-1 pointer-events-none"
-                                  initial={{ opacity: 0, y: 10 }}
-                                  whileHover={{ opacity: 1, y: 0 }}
+                                  className="w-full bg-gradient-to-t from-primary/80 to-primary/40 mx-[1px] rounded-t-sm"
+                                  style={{
+                                    height: animateChart ? `${(data.value / 200) * 100}%` : "0%",
+                                    transitionDelay: `${index * 50}ms`,
+                                  }}
+                                  initial={{ height: 0 }}
+                                  animate={{
+                                    height: animateChart ? `${(data.value / 200) * 100}%` : "0%",
+                                    transition: { duration: 1, delay: index * 0.05 },
+                                  }}
+                                  whileHover={{
+                                    scale: 1.05,
+                                    backgroundColor: "rgba(var(--primary), 0.8)",
+                                    transition: { duration: 0.2 },
+                                  }}
                                 >
-                                  {data.value}ms
+                                  <motion.div
+                                    className="opacity-0 hover:opacity-100 transition-opacity absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs rounded px-2 py-1 pointer-events-none"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    whileHover={{ opacity: 1, y: 0 }}
+                                  >
+                                    {data.value}ms
+                                  </motion.div>
                                 </motion.div>
-                              </motion.div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="h-6 flex overflow-x-auto">
+                          {performanceData.map((data, index) => (
+                            <div key={index} className="flex-1 text-xs text-center text-muted-foreground">
+                              {index % (isMobile ? 4 : 2) === 0 ? data.time : ""}
                             </div>
                           ))}
                         </div>
                       </div>
-                      <div className="h-6 flex overflow-x-auto">
-                        {performanceData.map((data, index) => (
-                          <div key={index} className="flex-1 text-xs text-center text-muted-foreground">
-                            {index % (isMobile ? 4 : 2) === 0 ? data.time : ""}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

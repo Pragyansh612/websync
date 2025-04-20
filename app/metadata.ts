@@ -1,19 +1,19 @@
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "WebSync - AI-Powered Website Monitoring Platform",
+  title: "WebSync - Smart Website Monitoring with AI-Powered Insights",
   description:
-    "Monitor your websites 24/7 with WebSync's AI-powered analytics. Get instant alerts when issues arise, detect problems before users do, and receive detailed error analysis to fix issues quickly.",
+    "Keep your websites running smoothly with WebSync's intelligent monitoring platform. Get instant alerts when issues arise, detect problems before users do, and receive actionable insights to fix issues quickly.",
   keywords:
-    "website monitoring, uptime monitoring, performance tracking, AI monitoring, website analytics, error detection, downtime alerts, website performance, WebSync monitoring tool, real-time alerts",
+    "website monitoring, uptime monitoring, performance tracking, AI monitoring, website analytics, error detection, downtime alerts, website performance, WebSync, real-time alerts",
   authors: [{ name: "WebSync Team" }],
   openGraph: {
     type: "website",
     locale: "en_US",
     url: "https://websync.io",
-    title: "WebSync - AI-Powered Website Monitoring Platform",
+    title: "WebSync - Smart Website Monitoring with AI-Powered Insights",
     description:
-      "Monitor your websites 24/7 with WebSync's AI-powered analytics. Get instant alerts when issues arise, detect problems before users do, and receive detailed error analysis to fix issues quickly.",
+      "Keep your websites running smoothly with WebSync's intelligent monitoring platform. Get instant alerts when issues arise, detect problems before users do, and receive actionable insights to fix issues quickly.",
     siteName: "WebSync",
     images: [
       {
@@ -26,9 +26,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "WebSync - AI-Powered Website Monitoring Platform",
+    title: "WebSync - Smart Website Monitoring with AI-Powered Insights",
     description:
-      "Monitor your websites 24/7 with WebSync's AI-powered analytics. Get instant alerts when issues arise, detect problems before users do, and receive detailed error analysis to fix issues quickly.",
+      "Keep your websites running smoothly with WebSync's intelligent monitoring platform. Get instant alerts when issues arise, detect problems before users do, and receive actionable insights to fix issues quickly.",
     images: ["https://websync.io/twitter-image.jpg"],
     creator: "@websync",
   },
@@ -40,4 +40,3 @@ export const metadata: Metadata = {
     canonical: "https://websync.io",
   },
 }
-
