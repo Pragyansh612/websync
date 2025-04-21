@@ -1,124 +1,143 @@
 "use client"
 
-import type React from "react"
-
-import { useRef } from "react"
-import { LazyMotion, domAnimation, m } from "framer-motion"
-import { useInView, useReducedMotion } from "framer-motion"
+import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
+import { LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion"
 
 import HeroSection from "@/components/home/HeroSection"
-import NotificationsSection from "@/components/home/NotificationsSection"
-import FeaturesSection from "@/components/home/FeaturesSection"
-import HowItWorksSection from "@/components/home/HowItWorksSection"
-import BenefitsSection from "@/components/home/BenefitsSection"
-import CtaSection from "@/components/home/CtaSection"
-import BentoGridSection from "@/components/home/BentoGridSection"
-import TestimonialsSection from "@/components/home/TestimonialsSection"
 
-interface AnimatedSectionProps {
-  children: React.ReactNode
-  id: string
-}
+// Dynamic imports with proper loading strategies
+const BentoGridSection = dynamic(() => import("@/components/home/BentoGridSection"), { 
+  ssr: false,
+  loading: () => <div className="h-96 flex items-center justify-center bg-slate-50/20 dark:bg-slate-900/20 backdrop-blur rounded-lg" />
+})
+const HowItWorksSection = dynamic(() => import("@/components/home/HowItWorksSection"), { ssr: false })
+const FeaturesSection = dynamic(() => import("@/components/home/FeaturesSection"), { ssr: false })
+const NotificationsSection = dynamic(() => import("@/components/home/NotificationsSection"), { ssr: false })
+const TestimonialsSection = dynamic(() => import("@/components/home/TestimonialsSection"), { ssr: false })
+// Removed BenefitsSection since it duplicates other content
+const CtaSection = dynamic(() => import("@/components/home/CtaSection"), { ssr: false })
 
+// Optimized minimal animated background component
 const AnimatedBackground = () => {
   const prefersReducedMotion = useReducedMotion()
-
+  if (prefersReducedMotion) return null
+  
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-      {!prefersReducedMotion && (
-        <>
-          <m.div
-            className="absolute top-[5%] right-[5%] w-[40%] h-[40%] rounded-full bg-slate-400/5 dark:bg-slate-500/5 blur-3xl"
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.2, 0.3, 0.2],
-            }}
-            transition={{
-              duration: 15,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
-            }}
-          />
-          <m.div
-            className="absolute bottom-[10%] left-[5%] w-[30%] h-[30%] rounded-full bg-slate-400/5 dark:bg-slate-500/5 blur-3xl"
-            animate={{
-              scale: [1, 1.3, 1],
-              opacity: [0.1, 0.2, 0.1],
-            }}
-            transition={{
-              duration: 20,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
-              delay: 2,
-            }}
-          />
-        </>
-      )}
+      <m.div
+        className="absolute top-[5%] right-[5%] w-[40%] h-[40%] rounded-full bg-slate-400/5 dark:bg-slate-500/5 blur-3xl"
+        animate={{
+          opacity: [0.1, 0.2, 0.1],
+        }}
+        transition={{
+          duration: 15,
+          repeat: Number.POSITIVE_INFINITY,
+          ease: "easeInOut",
+        }}
+      />
     </div>
   )
 }
 
-const AnimatedSection = ({ children, id }: AnimatedSectionProps) => {
-  const ref = useRef(null)
-  const isInView = useInView(ref, { amount: 0.1, once: true })
+// Improved intersection observer section for smoother loading
+function LazySection({ children, id, priority = false }:any) {
+  const [isVisible, setIsVisible] = useState(priority)
+  const [hasIntersected, setHasIntersected] = useState(false)
+
+  useEffect(() => {
+    // Skip for SSR or if already visible
+    if (typeof window === 'undefined' || isVisible) return
+    
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasIntersected) {
+          // Add small delay for smoother appearance
+          setTimeout(() => setIsVisible(true), 100)
+          setHasIntersected(true)
+          observer.unobserve(entry.target)
+        }
+      },
+      { rootMargin: '200px 0px', threshold: 0.05 }
+    )
+
+    const element = document.getElementById(id)
+    if (element) observer.observe(element)
+
+    return () => {
+      if (element) observer.unobserve(element)
+    }
+  }, [id, isVisible, hasIntersected])
 
   return (
-    <section ref={ref} id={id} className="relative">
-      <m.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      >
-        {children}
-      </m.div>
+    <section id={id} className="relative">
+      {isVisible ? children : <div className="min-h-[200px] flex items-center justify-center" />}
     </section>
   )
 }
 
 export default function Home() {
-  const prefersReducedMotion = useReducedMotion()
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
-    <LazyMotion features={domAnimation}>
-      <div className="flex flex-col min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
-        {/* Optimized background elements */}
-        <AnimatedBackground />
+    <>
+      {mounted ? (
+        <LazyMotion features={domAnimation} strict>
+          <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+            <AnimatedBackground />
 
-        {/* Main Content with optimized spacing */}
-        <div className="relative z-10">
-          <HeroSection />
+            {/* Main Content with optimized flow */}
+            <div className="relative z-10">
+              {/* Above the fold content */}
+              <HeroSection />
 
-          <div className="space-y-12 md:space-y-16 lg:space-y-20">
-            <AnimatedSection id="bento">
-              <BentoGridSection />
-            </AnimatedSection>
+              {/* Strategically ordered sections */}
+              <div className="space-y-16 md:space-y-24">
+                <LazySection id="bento" priority={true}>
+                  <BentoGridSection />
+                </LazySection>
 
-            <AnimatedSection id="how-it-works">
-              <HowItWorksSection />
-            </AnimatedSection>
+                <LazySection id="how-it-works">
+                  <HowItWorksSection />
+                </LazySection>
 
-            <AnimatedSection id="features">
-              <FeaturesSection />
-            </AnimatedSection>
+                <LazySection id="features">
+                  <FeaturesSection />
+                </LazySection>
 
-            <AnimatedSection id="notifications">
-              <NotificationsSection />
-            </AnimatedSection>
+                <LazySection id="notifications">
+                  <NotificationsSection />
+                </LazySection>
 
-            <AnimatedSection id="testimonials">
-              <TestimonialsSection />
-            </AnimatedSection>
+                <LazySection id="testimonials">
+                  <TestimonialsSection />
+                </LazySection>
 
-            <AnimatedSection id="benefits">
-              <BenefitsSection />
-            </AnimatedSection>
+                {/* Removed BenefitsSection as it duplicates content */}
 
-            <AnimatedSection id="cta">
-              <CtaSection />
-            </AnimatedSection>
+                <LazySection id="cta">
+                  <CtaSection />
+                </LazySection>
+              </div>
+            </div>
+          </div>
+        </LazyMotion>
+      ) : (
+        /* Improved initial loading state */
+        <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
+          <div className="relative z-10">
+            <HeroSection />
+            <div className="space-y-16 md:space-y-24">
+              <section id="bento" className="min-h-[300px] flex items-center justify-center"></section>
+              <section id="how-it-works" className="min-h-[200px]"></section>
+            </div>
           </div>
         </div>
-      </div>
-    </LazyMotion>
+      )}
+    </>
   )
 }

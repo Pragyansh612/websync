@@ -5,29 +5,39 @@ import { m, useInView, useReducedMotion } from "framer-motion"
 
 export default function BenefitsSection() {
   const benefitsRef = useRef(null)
-  const benefitsInView = useInView(benefitsRef, { once: true, amount: 0.2 })
+  const benefitsInView = useInView(benefitsRef, { once: true, amount: 0.1, margin: "100px 0px" })
   const prefersReducedMotion = useReducedMotion()
 
-  // Optimized animation variants
-  const containerAnimation = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.08, // Reduced stagger time for better performance
-        delayChildren: 0.1,
-      },
-    },
-  }
+  // Optimized animation variants with reduced motion support
+  const containerAnimation = prefersReducedMotion
+    ? {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1 },
+      }
+    : {
+        hidden: { opacity: 0 },
+        visible: {
+          opacity: 1,
+          transition: {
+            staggerChildren: 0.06,
+            delayChildren: 0.1,
+          },
+        },
+      }
 
-  const itemAnimation = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
-    },
-  }
+  const itemAnimation = prefersReducedMotion
+    ? {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { duration: 0.3 } },
+      }
+    : {
+        hidden: { opacity: 0, y: 20 },
+        visible: {
+          opacity: 1,
+          y: 0,
+          transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
+        },
+      }
 
   const benefits = [
     {
@@ -77,7 +87,7 @@ export default function BenefitsSection() {
   ]
 
   return (
-    <section className="w-full py-24 lg:py-32 relative overflow-hidden" ref={benefitsRef}>
+    <section className="w-full py-16 sm:py-20 lg:py-32 relative overflow-hidden" ref={benefitsRef}>
       <div className="absolute inset-0 bg-gradient-to-tr from-gray-50/80 to-gray-100/80 dark:from-gray-950/30 dark:to-black/30 -z-10" />
 
       {/* Decorative elements - optimized with reduced number of elements */}
@@ -88,10 +98,10 @@ export default function BenefitsSection() {
 
       <div className="container px-4 md:px-6 mx-auto relative">
         <m.div
-          className="flex flex-col items-center justify-center space-y-4 text-center mb-16"
-          initial={{ opacity: 0, y: 20 }}
-          animate={benefitsInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-          transition={{ duration: 0.6 }}
+          className="flex flex-col items-center justify-center space-y-4 text-center mb-10 sm:mb-16"
+          initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 20 }}
+          animate={benefitsInView ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 20 }}
+          transition={{ duration: 0.5 }}
         >
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">
             Why Choose{" "}
@@ -105,7 +115,7 @@ export default function BenefitsSection() {
         </m.div>
 
         <m.div
-          className="grid gap-8 md:grid-cols-2 lg:grid-cols-4 max-w-6xl mx-auto"
+          className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-4 max-w-6xl mx-auto"
           initial="hidden"
           animate={benefitsInView ? "visible" : "hidden"}
           variants={containerAnimation}
@@ -135,46 +145,55 @@ export default function BenefitsSection() {
 
         {/* Vertical cards for "How it Works" adventure-like experience */}
         <m.div
-          className="mt-24 max-w-6xl mx-auto"
-          initial={{ opacity: 0, y: 30 }}
-          animate={benefitsInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-          transition={{ duration: 0.7, delay: 0.4 }}
+          className="mt-16 sm:mt-24 max-w-6xl mx-auto"
+          initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 30 }}
+          animate={benefitsInView ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 30 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
         >
-          <h3 className="text-2xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300">
+          <h3 className="text-2xl font-bold text-center mb-8 sm:mb-12 bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300">
             Your Monitoring Adventure
           </h3>
 
           <div className="relative">
-            {/* Vertical line connecting cards */}
-            <div className="absolute left-1/2 transform -translate-x-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-gray-300 to-gray-500 dark:from-gray-700 dark:to-gray-500 rounded-full"></div>
+            {/* Vertical line connecting cards - visible only on medium screens and up */}
+            <div className="hidden md:block absolute left-1/2 transform -translate-x-1/2 top-0 bottom-0 w-1 bg-gradient-to-b from-gray-300 to-gray-500 dark:from-gray-700 dark:to-gray-500 rounded-full"></div>
 
-            <div className="space-y-16">
+            <div className="space-y-8 sm:space-y-16">
               {verticalCards.map((card, index) => (
                 <m.div
                   key={index}
                   className="relative"
-                  initial={{ opacity: 0, y: 50 }}
-                  animate={benefitsInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
-                  transition={{ duration: 0.6, delay: 0.2 + index * 0.15 }}
+                  initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 50 }}
+                  animate={benefitsInView ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 50 }}
+                  transition={{ duration: 0.5, delay: 0.1 + index * 0.1 }}
                 >
-                  {/* Connection dot */}
-                  <div className="absolute left-1/2 transform -translate-x-1/2 -top-8 w-8 h-8 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 dark:from-white dark:to-gray-300 border-4 border-white dark:border-gray-900 z-10 flex items-center justify-center">
+                  {/* Connection dot - visible only on medium screens and up */}
+                  <div className="hidden md:flex absolute left-1/2 transform -translate-x-1/2 -top-8 w-8 h-8 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 dark:from-white dark:to-gray-300 border-4 border-white dark:border-gray-900 z-10 items-center justify-center">
                     <span className="text-white dark:text-gray-900 font-bold text-sm">{index + 1}</span>
                   </div>
 
-                  {/* Card positioned alternately left and right */}
+                  {/* Card positioned alternately left and right on medium screens and up */}
                   <div className={`w-full md:w-[calc(50%-2rem)] ${index % 2 === 0 ? "md:ml-auto" : "md:mr-auto"}`}>
                     <m.div
                       className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border border-white/30 dark:border-gray-700/30 rounded-xl p-6 shadow-lg"
-                      whileHover={{
-                        y: -5,
-                        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-                        transition: { duration: 0.3 },
-                      }}
+                      whileHover={
+                        prefersReducedMotion
+                          ? {}
+                          : {
+                              y: -5,
+                              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+                              transition: { duration: 0.3 },
+                            }
+                      }
                     >
                       <div className="flex items-center mb-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 dark:from-white dark:to-gray-300 flex items-center justify-center mr-4 shadow-md">
+                        {/* For mobile, show step number beside icon */}
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 dark:from-white dark:to-gray-300 flex items-center justify-center mr-4 shadow-md relative">
                           <span className="text-xl">{card.icon}</span>
+                          {/* Mobile step indicator */}
+                          <div className="md:hidden absolute -right-2 -bottom-2 w-6 h-6 rounded-full bg-white dark:bg-gray-900 border-2 border-gray-800 dark:border-white flex items-center justify-center">
+                            <span className="text-gray-900 dark:text-white text-xs font-bold">{index + 1}</span>
+                          </div>
                         </div>
                         <h4 className="text-xl font-bold text-gray-900 dark:text-white">{card.title}</h4>
                       </div>
@@ -189,26 +208,26 @@ export default function BenefitsSection() {
 
         {/* Stats section */}
         <m.div
-          className="mt-24 max-w-6xl mx-auto bg-white/20 dark:bg-gray-800/20 backdrop-blur-lg border border-white/20 dark:border-gray-700/20 rounded-2xl shadow-xl p-8 overflow-hidden"
-          initial={{ opacity: 0, y: 40 }}
-          animate={benefitsInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
+          className="mt-16 sm:mt-24 max-w-6xl mx-auto bg-white/20 dark:bg-gray-800/20 backdrop-blur-lg border border-white/20 dark:border-gray-700/20 rounded-2xl shadow-xl p-6 sm:p-8 overflow-hidden"
+          initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 40 }}
+          animate={benefitsInView ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 40 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
         >
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 mb-2">
+              <div className="text-4xl sm:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 mb-2">
                 99.9%
               </div>
               <p className="text-gray-600 dark:text-gray-300">Average Uptime</p>
             </div>
             <div className="text-center">
-              <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 mb-2">
+              <div className="text-4xl sm:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 mb-2">
                 10,000+
               </div>
               <p className="text-gray-600 dark:text-gray-300">Websites Monitored</p>
             </div>
             <div className="text-center">
-              <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 mb-2">
+              <div className="text-4xl sm:text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 mb-2">
                 3M+
               </div>
               <p className="text-gray-600 dark:text-gray-300">Issues Detected</p>
@@ -218,14 +237,14 @@ export default function BenefitsSection() {
 
         {/* Testimonial */}
         <m.div
-          className="mt-16 max-w-4xl mx-auto"
-          initial={{ opacity: 0, y: 30 }}
-          animate={benefitsInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-          transition={{ duration: 0.7, delay: 0.6 }}
+          className="mt-12 sm:mt-16 max-w-4xl mx-auto"
+          initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 30 }}
+          animate={benefitsInView ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 30 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
         >
-          <div className="bg-white/20 dark:bg-gray-800/20 backdrop-blur-lg border border-white/20 dark:border-gray-700/20 rounded-2xl shadow-xl p-8 relative">
+          <div className="bg-white/20 dark:bg-gray-800/20 backdrop-blur-lg border border-white/20 dark:border-gray-700/20 rounded-2xl shadow-xl p-6 sm:p-8 relative">
             <svg
-              className="absolute text-gray-600/20 h-24 w-24 -top-4 -left-4"
+              className="absolute text-gray-600/20 h-16 w-16 sm:h-24 sm:w-24 -top-4 -left-4"
               fill="currentColor"
               viewBox="0 0 32 32"
               aria-hidden="true"
@@ -233,13 +252,13 @@ export default function BenefitsSection() {
               <path d="M9.352 4C4.456 7.456 1 13.12 1 19.36c0 5.088 3.072 8.064 6.624 8.064 3.36 0 5.856-2.688 5.856-5.856 0-3.168-2.208-5.472-5.088-5.472-.576 0-1.344.096-1.536.192.48-3.264 3.552-7.104 6.624-9.024L9.352 4zm16.512 0c-4.8 3.456-8.256 9.12-8.256 15.36 0 5.088 3.072 8.064 6.624 8.064 3.264 0 5.856-2.688 5.856-5.856 0-3.168-2.304-5.472-5.184-5.472-.576 0-1.248.096-1.44.192.48-3.264 3.456-7.104 6.528-9.024L25.864 4z" />
             </svg>
 
-            <p className="text-gray-700 dark:text-gray-300 text-lg italic relative z-10">
+            <p className="text-gray-700 dark:text-gray-300 text-base sm:text-lg italic relative z-10">
               "WebSync has completely transformed how we monitor our web applications. The AI-powered insights have
               helped us reduce downtime by 78% and improve our response time to critical issues."
             </p>
 
             <div className="mt-4 flex items-center">
-              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 dark:from-white dark:to-gray-300 flex items-center justify-center text-white dark:text-black font-bold">
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gradient-to-br from-gray-800 to-gray-900 dark:from-white dark:to-gray-300 flex items-center justify-center text-white dark:text-black font-bold">
                 JD
               </div>
               <div className="ml-4">

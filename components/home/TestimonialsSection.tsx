@@ -1,13 +1,14 @@
 "use client"
 
 import { useRef } from "react"
-import { m, useInView } from "framer-motion"
+import { m, useInView, useReducedMotion } from "framer-motion"
 import Image from "next/image"
 import { Star } from "lucide-react"
 
 export default function TestimonialsSection() {
   const ref = useRef(null)
-  const isInView = useInView(ref, { once: true, amount: 0.2 })
+  const isInView = useInView(ref, { once: true, amount: 0.1, margin: "100px 0px" })
+  const prefersReducedMotion = useReducedMotion()
 
   const testimonials = [
     {
@@ -36,35 +37,48 @@ export default function TestimonialsSection() {
     },
   ]
 
-  // Animation variants
-  const containerAnimation = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2,
-      },
-    },
-  }
+  // Optimized animation variants with reduced motion support
+  const containerAnimation = prefersReducedMotion
+    ? {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1 },
+      }
+    : {
+        hidden: { opacity: 0 },
+        visible: {
+          opacity: 1,
+          transition: {
+            staggerChildren: 0.08,
+            delayChildren: 0.1,
+          },
+        },
+      }
 
-  const itemAnimation = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
-    },
-  }
+  const itemAnimation = prefersReducedMotion
+    ? {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { duration: 0.3 } },
+      }
+    : {
+        hidden: { opacity: 0, y: 20 },
+        visible: {
+          opacity: 1,
+          y: 0,
+          transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+        },
+      }
 
   return (
-    <section className="w-full py-20 md:py-28 relative overflow-hidden bg-slate-50/50 dark:bg-slate-900/50" ref={ref}>
+    <section 
+      className="w-full py-8 sm:py-10 md:py-14 relative overflow-hidden bg-slate-50/50 dark:bg-slate-900/50" 
+      ref={ref}
+    >
       <div className="container px-4 md:px-6 mx-auto">
         <m.div
-          className="flex flex-col items-center justify-center space-y-4 text-center mb-12"
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-          transition={{ duration: 0.6 }}
+          className="flex flex-col items-center justify-center space-y-4 text-center mb-8 sm:mb-12"
+          initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: prefersReducedMotion ? 0 : 20 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
         >
           <div className="space-y-2 max-w-[800px]">
             <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl">What our customers say</h2>
@@ -75,7 +89,7 @@ export default function TestimonialsSection() {
         </m.div>
 
         <m.div
-          className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
           initial="hidden"
           animate={isInView ? "visible" : "hidden"}
           variants={containerAnimation}
@@ -85,9 +99,10 @@ export default function TestimonialsSection() {
               key={index}
               className="relative group"
               variants={itemAnimation}
-              whileHover={{ y: -5, transition: { duration: 0.2 } }}
+              whileHover={prefersReducedMotion ? {} : { y: -5, transition: { duration: 0.2 } }}
+              viewport={{ once: true, margin: "0px 0px -100px 0px" }}
             >
-              <div className="h-full premium-glass-card rounded-2xl p-6 flex flex-col">
+              <div className="h-full premium-glass-card rounded-2xl p-6 flex flex-col border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow duration-300">
                 <div className="flex items-center mb-4">
                   <div className="mr-4">
                     <Image

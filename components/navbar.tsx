@@ -65,7 +65,7 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut()
-    
+
     if (error) {
       toast({
         title: "Logout Error",
@@ -111,7 +111,7 @@ export default function Navbar() {
               <User className="h-4 w-4" />
               <span>{userEmail}</span>
             </div>
-            <Button 
+            <Button
               onClick={handleLogout}
               variant="outline"
               className="glass-button border-white/30 dark:border-white/10 hover:bg-primary/5 hover:border-primary/30"
@@ -169,20 +169,21 @@ export default function Navbar() {
                 {routes.map((route) => (
                   <motion.div key={route.path} variants={itemAnimation}>
                     <NavigationMenuItem>
-                      <Link href={route.path} legacyBehavior passHref>
-                        <NavigationMenuLink
-                          className={cn(
-                            navigationMenuTriggerStyle(),
-                            "cursor-pointer transition-all glass-button border-0",
-                            pathname === route.path
-                              ? "text-primary font-medium bg-primary/10"
-                              : "text-muted-foreground hover:text-primary hover:bg-primary/5",
-                          )}
-                          active={pathname === route.path}
-                        >
+                      <NavigationMenuLink
+                        asChild
+                        className={cn(
+                          navigationMenuTriggerStyle(),
+                          "cursor-pointer transition-all glass-button border-0",
+                          pathname === route.path
+                            ? "text-primary font-medium bg-primary/10"
+                            : "text-muted-foreground hover:text-primary hover:bg-primary/5",
+                        )}
+                        active={pathname === route.path}
+                      >
+                        <Link href={route.path}>
                           {route.name}
-                        </NavigationMenuLink>
-                      </Link>
+                        </Link>
+                      </NavigationMenuLink>
                     </NavigationMenuItem>
                   </motion.div>
                 ))}
@@ -230,7 +231,7 @@ export default function Navbar() {
                         <User className="h-4 w-4" />
                         <span>{userEmail}</span>
                       </div>
-                      <Button 
+                      <Button
                         onClick={handleLogout}
                         variant="outline"
                         className="w-full glass-button border-white/30 dark:border-white/10"
