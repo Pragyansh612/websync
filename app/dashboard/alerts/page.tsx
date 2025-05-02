@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AlertCircle, ArrowUpRight, Bell, BellOff, Check, Clock, Filter, Search, X } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { motion, AnimatePresence } from "framer-motion"
-import { supabase } from "@/lib/supabaseClient"
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useToast } from "@/components/ui/use-toast"
 
 interface Alert {
@@ -46,15 +46,14 @@ export default function AlertsPage() {
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
   const router = useRouter()
+  const supabase = createClientComponentClient()
 
   useEffect(() => {
     async function fetchAlerts() {
       try {
         setLoading(true)
-        // First check if user is authenticated
-        const { data: { user } } = await supabase.auth.getUser()
-
-        if (!user) {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        if (!session) {
           // Redirect to login if not authenticated
           router.push('/login')
           return
@@ -73,7 +72,7 @@ export default function AlertsPage() {
     resolved_at,
     websites:websites(name, url)
   `)
-          .eq('websites.user_id', user.id)
+          .eq('websites.user_id', (await supabase.auth.getUser()).data.user?.id)
           .order('created_at', { ascending: false });
 
         // And update the formattedAlerts mapping:
@@ -89,8 +88,8 @@ export default function AlertsPage() {
               websiteUrl = alert.websites[0]?.url || '#';
             } else {
               // Handle case where websites is an object
-              websiteName = alert.websites.name || 'Unknown Website';
-              websiteUrl = alert.websites.url || '#';
+              // websiteName = alert.websites.name || 'Unknown Website';
+              // websiteUrl = alert.websites.url || '#';
             }
           }
 

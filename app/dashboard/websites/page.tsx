@@ -41,8 +41,8 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { motion, AnimatePresence } from "framer-motion"
-import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 // Define the Website type based on your database schema
 interface Website {
@@ -78,6 +78,7 @@ export default function WebsitesPage() {
   const [sortOrder, setSortOrder] = useState("asc")
   const { toast } = useToast()
   const router = useRouter()
+  const supabase = createClientComponentClient()
 
   // Fetch websites from the database
   useEffect(() => {
@@ -85,8 +86,8 @@ export default function WebsitesPage() {
   }, [])
 
   const fetchWebsites = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    if (!session) {
       router.push('/login')
       return
     }

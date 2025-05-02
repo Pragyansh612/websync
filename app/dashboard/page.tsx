@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
-import { supabase } from "@/lib/supabaseClient"
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 type Website = {
   id: string
@@ -41,6 +41,9 @@ type Alert = {
 }
 
 export default function DashboardPage() {
+  // Create supabase client using the same method as your layout and middleware
+  const supabase = createClientComponentClient()
+  
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -92,211 +95,229 @@ export default function DashboardPage() {
   const fetchData = async () => {
     setIsLoading(true)
 
-    // Get the session using the same method as in Navbar.tsx
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
+    try {
+      // Get the session with the component-scoped client
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
-    if (!session || !session.user) {
-      console.error("No authenticated user found")
-      toast({
-        title: "Authentication Error",
-        description: "Please log in to view your dashboard.",
-        variant: "destructive",
-      })
-      router.push("/login")
-      setIsLoading(false)
-      return
-    }
+      if (sessionError) {
+        console.error("Error getting session:", sessionError)
+        toast({
+          title: "Authentication Error",
+          description: "Unable to verify your session. Please try logging in again.",
+          variant: "destructive",
+        })
+        router.push("/login")
+        setIsLoading(false)
+        return
+      }
 
-    const userId = session.user.id
+      if (!session || !session.user) {
+        console.error("No authenticated user found")
+        toast({
+          title: "Authentication Error",
+          description: "Please log in to view your dashboard.",
+          variant: "destructive",
+        })
+        router.push("/login")
+        setIsLoading(false)
+        return
+      }
 
-    // Fetch websites with their latest check data
-    const { data: websitesData, error: websitesError } = await supabase
-      .from("websites")
-      .select(`
-        id, 
-        name, 
-        url, 
-        status,
-        last_checked_at,
-        user_id
-      `)
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false })
+      const userId = session.user.id
 
-    console.log(websitesData)
-
-    if (websitesError) {
-      console.error("Error fetching websites:", websitesError)
-    } else if (websitesData) {
-      // For each website, get its latest check data
-
-      const websitesWithStatus = await Promise.all(
-        websitesData.map(async (website) => {
-          const { data: latestCheck } = await supabase
-            .from("website_checks")
-            .select("status_code, response_time_ms, is_up, error_message")
-            .eq("website_id", website.id)
-            .order("timestamp", { ascending: false })
-            .limit(1)
-            .single()
-
-          // Calculate uptime based on is_up history
-          const { data: uptimeData } = await supabase
-            .from("website_checks")
-            .select("is_up")
-            .eq("website_id", website.id)
-            .order("timestamp", { ascending: false })
-            .limit(100)
-
-          const uptimePercentage = uptimeData && uptimeData.length > 0
-            ? ((uptimeData.filter((check) => check.is_up).length / uptimeData.length) * 100).toFixed(2) + "%"
-            : "N/A"
-
-          // Fix: Map "active" status to "up" for display
-          let displayStatus = "down"
-          if (website.status === "active" || website.status === "up" || (latestCheck && latestCheck.is_up)) {
-            displayStatus = "up"
-          } else if (latestCheck && latestCheck.status_code >= 400 && latestCheck.status_code < 500) {
-            displayStatus = "degraded"
-          }
-
-          return {
-            ...website,
-            status: displayStatus,
-            uptime: uptimePercentage,
-            response_time_ms: latestCheck?.response_time_ms || 0,
-            error_message: latestCheck?.error_message,
-          }
-        }),
-      )
-
-      setWebsites(websitesWithStatus)
-    }
-
-    if (websitesData) {
-
-      // Get user's website IDs
-      const userWebsiteIds = websitesData.map(website => website.id)
-
-      // Fetch alerts only for the user's websites
-      const { data: alertsData, error: alertsError } = await supabase
-        .from("alerts")
+      // Fetch websites with their latest check data
+      const { data: websitesData, error: websitesError } = await supabase
+        .from("websites")
         .select(`
-    id,
-    website_id,
-    type,
-    severity,
-    description,
-    created_at,
-    is_resolved,
-    websites:website_id (name)
-  `)
-        .in("website_id", userWebsiteIds.length > 0 ? userWebsiteIds : ['no-websites']) // Use dummy value if no websites
+          id, 
+          name, 
+          url, 
+          status,
+          last_checked_at,
+          user_id
+        `)
+        .eq("user_id", userId)
         .order("created_at", { ascending: false })
-        .limit(5)
 
-      if (alertsError) {
-        console.error("Error fetching alerts:", alertsError)
-      } else if (alertsData && alertsData.length > 0) {
-        const formattedAlerts = alertsData.map((alert) => {
-          // Format code remains the same
-          let websiteName = "Unknown Site"
+      if (websitesError) {
+        console.error("Error fetching websites:", websitesError)
+        toast({
+          title: "Data Fetch Error",
+          description: "Unable to fetch your websites. Please try again later.",
+          variant: "destructive",
+        })
+      } else if (websitesData) {
+        // For each website, get its latest check data
+        const websitesWithStatus = await Promise.all(
+          websitesData.map(async (website) => {
+            const { data: latestCheck } = await supabase
+              .from("website_checks")
+              .select("status_code, response_time_ms, is_up, error_message")
+              .eq("website_id", website.id)
+              .order("timestamp", { ascending: false })
+              .limit(1)
+              .single()
 
-          if (alert.websites) {
-            if (Array.isArray(alert.websites)) {
-              websiteName = alert.websites.length > 0 && alert.websites[0]?.name ? alert.websites[0].name : "Unknown Site"
-            } else if (typeof alert.websites === "object" && alert.websites !== null) {
-              websiteName = (alert.websites as { name?: string }).name || "Unknown Site"
+            // Calculate uptime based on is_up history
+            const { data: uptimeData } = await supabase
+              .from("website_checks")
+              .select("is_up")
+              .eq("website_id", website.id)
+              .order("timestamp", { ascending: false })
+              .limit(100)
+
+            const uptimePercentage = uptimeData && uptimeData.length > 0
+              ? ((uptimeData.filter((check) => check.is_up).length / uptimeData.length) * 100).toFixed(2) + "%"
+              : "N/A"
+
+            // Fix: Map "active" status to "up" for display
+            let displayStatus = "down"
+            if (website.status === "active" || website.status === "up" || (latestCheck && latestCheck.is_up)) {
+              displayStatus = "up"
+            } else if (latestCheck && latestCheck.status_code >= 400 && latestCheck.status_code < 500) {
+              displayStatus = "degraded"
             }
-          }
 
-          return {
-            ...alert,
-            website_name: websiteName,
+            return {
+              ...website,
+              status: displayStatus,
+              uptime: uptimePercentage,
+              response_time_ms: latestCheck?.response_time_ms || 0,
+              error_message: latestCheck?.error_message,
+            }
+          }),
+        )
+
+        setWebsites(websitesWithStatus)
+      }
+
+      if (websitesData) {
+        // Get user's website IDs
+        const userWebsiteIds = websitesData.map(website => website.id)
+
+        // Fetch alerts only for the user's websites
+        const { data: alertsData, error: alertsError } = await supabase
+          .from("alerts")
+          .select(`
+      id,
+      website_id,
+      type,
+      severity,
+      description,
+      created_at,
+      is_resolved,
+      websites:website_id (name)
+    `)
+          .in("website_id", userWebsiteIds.length > 0 ? userWebsiteIds : ['no-websites']) // Use dummy value if no websites
+          .order("created_at", { ascending: false })
+          .limit(5)
+
+        if (alertsError) {
+          console.error("Error fetching alerts:", alertsError)
+        } else if (alertsData && alertsData.length > 0) {
+          const formattedAlerts = alertsData.map((alert) => {
+            // Format code remains the same
+            let websiteName = "Unknown Site"
+
+            if (alert.websites) {
+              if (Array.isArray(alert.websites)) {
+                websiteName = alert.websites.length > 0 && alert.websites[0]?.name ? alert.websites[0].name : "Unknown Site"
+              } else if (typeof alert.websites === "object" && alert.websites !== null) {
+                websiteName = (alert.websites as { name?: string }).name || "Unknown Site"
+              }
+            }
+
+            return {
+              ...alert,
+              website_name: websiteName,
+            }
+          })
+
+          setRecentAlerts(formattedAlerts)
+        } else {
+          setRecentAlerts([])
+        }
+      }
+
+      const oneDayAgo = new Date()
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1)
+
+      interface PerformanceRecord {
+        timestamp: string;
+        response_time_ms: number | null;
+      }
+
+      let performanceHistoryData: PerformanceRecord[] = []
+      let performanceError = null
+
+      if (websitesData && websitesData.length > 0) {
+        const response = await supabase
+          .from("website_checks")
+          .select("timestamp, response_time_ms")
+          .eq("website_id", websitesData[0].id)
+          .gte("timestamp", oneDayAgo.toISOString())
+          .order("timestamp", { ascending: true })
+
+        performanceHistoryData = response.data || []
+        performanceError = response.error
+      } else {
+        console.log("No websites found to fetch performance data for")
+      }
+
+      if (performanceError) {
+        console.error("Error fetching performance data:", performanceError)
+      } else if (performanceHistoryData && performanceHistoryData.length > 0) {
+        // Group by hour and calculate average
+        const hourlyData: Record<string, number[]> = {}
+
+        performanceHistoryData.forEach((record) => {
+          if (!record.response_time_ms) return; // Skip if no response time
+          const date = new Date(record.timestamp);
+          const hour = date.getHours();
+          const hourString = `${hour}:00`;
+
+          if (!hourlyData[hourString]) {
+            hourlyData[hourString] = []
           }
+          hourlyData[hourString].push(record.response_time_ms)
         })
 
-        setRecentAlerts(formattedAlerts)
+        // Fill in missing hours with default values
+        for (let i = 0; i < 24; i++) {
+          const hourString = `${i}:00`;
+          if (!hourlyData[hourString]) {
+            hourlyData[hourString] = [100]; // Default value
+          }
+        }
+
+        const chartData = Object.entries(hourlyData).map(([time, values]) => ({
+          time,
+          value: Math.round(values.reduce((sum, val) => sum + val, 0) / values.length),
+        })).sort((a, b) => {
+          return parseInt(a.time) - parseInt(b.time);
+        });
+
+        setPerformanceData(chartData)
+        setAnimateChart(true) // Make sure chart animates
       } else {
-        setRecentAlerts([])
+        // Generate sample data if no real data is available
+        // const sampleData = Array.from({ length: 24 }, (_, i) => ({
+        //   time: `${i}:00`,
+        //   value: Math.floor(Math.random() * 100) + 50,
+        // }));
+        // setPerformanceData(sampleData);
+        // setAnimateChart(true);
       }
-    }
-
-    const oneDayAgo = new Date()
-    oneDayAgo.setDate(oneDayAgo.getDate() - 1)
-
-    interface PerformanceRecord {
-      timestamp: string;
-      response_time_ms: number | null;
-    }
-
-    let performanceHistoryData: PerformanceRecord[] = []
-    let performanceError = null
-
-    if (websitesData && websitesData.length > 0) {
-      const response = await supabase
-        .from("website_checks")
-        .select("timestamp, response_time_ms")
-        .eq("website_id", websitesData[0].id)
-        .gte("timestamp", oneDayAgo.toISOString())
-        .order("timestamp", { ascending: true })
-
-      performanceHistoryData = response.data || []
-      performanceError = response.error
-    } else {
-      console.log("No websites found to fetch performance data for")
-    }
-
-    console.log(performanceHistoryData)
-
-    if (performanceError) {
-      console.error("Error fetching performance data:", performanceError)
-    } else if (performanceHistoryData && performanceHistoryData.length > 0) {
-      // Group by hour and calculate average
-      const hourlyData: Record<string, number[]> = {}
-
-      performanceHistoryData.forEach((record) => {
-        if (!record.response_time_ms) return; // Skip if no response time
-        const date = new Date(record.timestamp);
-        const hour = date.getHours();
-        const hourString = `${hour}:00`;
-
-        if (!hourlyData[hourString]) {
-          hourlyData[hourString] = []
-        }
-        hourlyData[hourString].push(record.response_time_ms)
+    } catch (error) {
+      console.error("Unexpected error in fetchData:", error)
+      toast({
+        title: "Error",
+        description: "Something went wrong while loading your dashboard. Please try again later.",
+        variant: "destructive",
       })
-
-      // Fill in missing hours with default values
-      for (let i = 0; i < 24; i++) {
-        const hourString = `${i}:00`;
-        if (!hourlyData[hourString]) {
-          hourlyData[hourString] = [100]; // Default value
-        }
-      }
-
-      const chartData = Object.entries(hourlyData).map(([time, values]) => ({
-        time,
-        value: Math.round(values.reduce((sum, val) => sum + val, 0) / values.length),
-      })).sort((a, b) => {
-        return parseInt(a.time) - parseInt(b.time);
-      });
-
-      setPerformanceData(chartData)
-      setAnimateChart(true) // Make sure chart animates
-    } else {
-      // Generate sample data if no real data is available
-      // const sampleData = Array.from({ length: 24 }, (_, i) => ({
-      //   time: `${i}:00`,
-      //   value: Math.floor(Math.random() * 100) + 50,
-      // }));
-      // setPerformanceData(sampleData);
-      // setAnimateChart(true);
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }
 
   // Update the refresh handler

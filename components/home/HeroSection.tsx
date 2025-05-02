@@ -5,6 +5,7 @@ import { useRef, useState, useEffect, useMemo } from "react"
 import { type MotionStyle, m, useInView, useReducedMotion } from "framer-motion"
 import { ArrowRight, Check, Zap, LineChart, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import ParticleField from "../ui/ParticleField"
 
 // const getCardStyle = (i: number): MotionStyle => ({
 //   opacity: 1,
@@ -67,6 +68,7 @@ export default function HeroSection() {
   const [isMounted, setIsMounted] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const prefersReducedMotion = useReducedMotion()
+  const [isDarkMode, setIsDarkMode] = useState(false)
 
   // Check if mobile on mount and window resize
   useEffect(() => {
@@ -90,6 +92,35 @@ export default function HeroSection() {
       clearTimeout(resizeTimer)
     }
   }, [])
+
+  useEffect(() => {
+    // Check for dark mode on mount
+    const checkDarkMode = () => {
+      // Check if 'dark' class is on the document or for system preference
+      const isDark = document.documentElement.classList.contains('dark') || 
+                    (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      setIsDarkMode(isDark);
+    };
+    
+    checkDarkMode();
+    
+    // Optional: Listen for changes if you have a theme toggle
+    const darkModeObserver = new MutationObserver(checkDarkMode);
+    darkModeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    
+    // Also listen for system preference changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => checkDarkMode();
+    mediaQuery.addEventListener('change', handleChange);
+    
+    return () => {
+      darkModeObserver.disconnect();
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, [isMounted]);
 
   // Highly optimized mouse tracking with debounce and conditional execution
   useEffect(() => {
@@ -161,7 +192,7 @@ export default function HeroSection() {
 
     const centerX = window.innerWidth / 2
     const centerY = window.innerHeight / 2
-    
+
     return {
       x: ((mousePosition.x - centerX) / 50) * factor,
       y: ((mousePosition.y - centerY) / 50) * factor,
@@ -175,6 +206,21 @@ export default function HeroSection() {
       // Add content-visibility to improve rendering performance
       style={{ contentVisibility: "auto", containIntrinsicSize: "0 500px" }}
     >
+
+      <div className="grid-lines-container dark:hidden" />
+
+      {/* Particles for Dark Mode */}
+      {isDarkMode && isMounted && !prefersReducedMotion && (
+        <ParticleField
+          count={100}
+          speed={0.3}
+          density="medium"
+          colors={["#e2e8f0", "#94a3b8", "#cbd5e1"]}
+          interactive={true}
+          interactionStrength={1.2}
+          gridBased={true} // Use the grid-based layout for intersection points
+        />
+      )}
       <div className="container px-4 md:px-6 relative z-10">
         <m.div
           className="flex flex-col items-center justify-center text-center space-y-6 md:space-y-8 relative"

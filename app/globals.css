@@ -4,67 +4,63 @@
 
 @layer base {
   :root {
-    /* Professional light theme - refined black and white */
+    /* Professional black and white theme with minimal gray */
     --background: 0 0% 100%;
     --foreground: 0 0% 0%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 0%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 0%;
-    --primary: 220 13% 20%;
+    --primary: 220 13% 10%;
     --primary-foreground: 0 0% 100%;
     --secondary: 220 13% 96%;
-    --secondary-foreground: 220 13% 20%;
+    --secondary-foreground: 220 13% 10%;
     --muted: 220 13% 96%;
-    --muted-foreground: 220 13% 40%;
+    --muted-foreground: 220 13% 30%;
     --accent: 220 13% 96%;
-    --accent-foreground: 220 13% 20%;
+    --accent-foreground: 220 13% 10%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
     --border: 220 13% 90%;
     --input: 220 13% 90%;
-    --ring: 220 13% 20%;
+    --ring: 220 13% 10%;
     --radius: 0.5rem;
 
-    --accent-slate: 220 13% 20%;
-    --accent-teal: 180 70% 45%;
+    /* Pure black/white accent colors */
+    --accent-black: 0 0% 0%;
+    --accent-white: 0 0% 100%;
   }
 
   .dark {
-    /* Enhanced futuristic black and white theme */
-    --background: 220 20% 3%;
+    /* Pure futuristic black and white theme */
+    --background: 220 20% 2%;
     --foreground: 0 0% 100%;
-    --card: 220 20% 5%;
+    --card: 220 20% 4%;
     --card-foreground: 0 0% 100%;
-    --popover: 220 20% 5%;
+    --popover: 220 20% 4%;
     --popover-foreground: 0 0% 100%;
-    --primary: 0 0% 95%;
-    --primary-foreground: 220 20% 3%;
-    --secondary: 220 20% 10%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 220 20% 2%;
+    --secondary: 220 20% 8%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 220 20% 10%;
-    --muted-foreground: 0 0% 80%;
-    --accent: 220 20% 15%;
+    --muted: 220 20% 8%;
+    --muted-foreground: 0 0% 85%;
+    --accent: 220 20% 12%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 20% 12%;
-    --input: 220 20% 12%;
-    --ring: 0 0% 90%;
-
-    --accent-slate: 0 0% 90%;
-    --accent-teal: 180 5% 90%;
+    --border: 220 20% 10%;
+    --input: 220 20% 10%;
+    --ring: 0 0% 100%;
     
-    /* Advanced futuristic dark mode specific colors */
+    /* Refined futuristic mode colors */
     --glow-white: 0 0% 100%;
-    --glow-cyan: 180 100% 50%;
-    --grid-lines: 220 20% 15%;
+    --grid-lines: 220 20% 12%;
     --component-spacing: 1.75rem;
     
-    /* Refined futuristic neon accents */
+    /* Subtle digital accents */
     --neon-highlight: 0 0% 100%;
-    --neon-blue: 210 100% 60%;
-    --neon-cyan: 180 100% 50%;
+    --neon-subtle: 210 100% 98%;
   }
 }
 
@@ -95,7 +91,7 @@
 }
 
 @layer components {
-  /* Enhanced Futuristic Glassmorphism Styles */
+  /* Enhanced Glassmorphism Styles */
   .premium-glass-card {
     @apply bg-white/10 dark:bg-black/40 backdrop-blur-md border border-white/20 dark:border-white/5 shadow-lg;
     position: relative;
@@ -104,7 +100,7 @@
   }
 
   .dark .premium-glass-card {
-    background: linear-gradient(135deg, rgba(18, 20, 25, 0.8), rgba(8, 9, 12, 0.9));
+    background: linear-gradient(135deg, rgba(10, 11, 13, 0.8), rgba(5, 6, 7, 0.9));
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -117,7 +113,7 @@
   
   .dark .premium-glass-card:hover {
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 
-                0 0 15px rgba(var(--glow-white), 0.1);
+                0 0 15px rgba(0, 0, 0, 0.6);
   }
 
   .premium-gradient-border {
@@ -131,7 +127,7 @@
     z-index: -1;
     inset: -1px;
     border-radius: calc(var(--radius) + 1px);
-    background: linear-gradient(45deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1));
+    background: linear-gradient(45deg, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.05));
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask-composite: exclude;
     -webkit-mask-composite: xor;
@@ -140,20 +136,19 @@
   
   .dark .premium-gradient-border::before {
     background: linear-gradient(45deg, 
-      rgba(255, 255, 255, 0.05), 
-      rgba(var(--neon-cyan), 0.2), 
-      rgba(255, 255, 255, 0.05));
-    animation: borderGlow 6s ease infinite;
+      rgba(255, 255, 255, 0.03), 
+      rgba(255, 255, 255, 0.07), 
+      rgba(255, 255, 255, 0.03));
   }
 
-  /* Refined Futuristic Glass Form Elements */
+  /* Refined Glass Form Elements */
   .premium-glass-element {
     @apply bg-white/5 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/5 shadow-sm transition-all;
   }
 
   .dark .premium-glass-element {
-    background: rgba(12, 13, 16, 0.7);
-    border-color: rgba(255, 255, 255, 0.07);
+    background: rgba(10, 11, 14, 0.7);
+    border-color: rgba(255, 255, 255, 0.05);
   }
 
   .premium-glass-element:focus,
@@ -163,31 +158,31 @@
   
   .dark .premium-glass-element:focus,
   .dark .premium-glass-element:focus-visible {
-    box-shadow: 0 0 0 2px rgba(var(--neon-blue), 0.2);
-    border-color: rgba(var(--neon-blue), 0.3);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
   }
 
-  /* Enhanced grid lines background for futuristic feel */
+  /* Enhanced grid lines background */
   .grid-lines {
-    background-image: linear-gradient(to right, rgba(0,.0, 0, 0.03) 1px, transparent 1px),
+    background-image: linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
       linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
     background-size: 25px 25px;
   }
 
   .dark .grid-lines {
-    background-image: linear-gradient(to right, rgba(var(--grid-lines), 0.2) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(var(--grid-lines), 0.2) 1px, transparent 1px);
+    background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
     background-size: 40px 40px;
   }
 
-  /* Enhanced scan line effect */
+  /* Subtle scan line effect */
   .scan-line::before {
     content: "";
     position: absolute;
     width: 100%;
     height: 1px;
-    background: rgba(0, 0, 0, 0.05);
-    animation: scan 2.5s linear infinite;
+    background: rgba(0, 0, 0, 0.03);
+    animation: scan 3s linear infinite;
     z-index: 10;
     pointer-events: none;
     opacity: 0.3;
@@ -196,13 +191,12 @@
   .dark .scan-line::before {
     background: linear-gradient(90deg, 
       transparent, 
-      rgba(var(--neon-cyan), 0.3), 
-      rgba(255, 255, 255, 0.6), 
-      rgba(var(--neon-cyan), 0.3), 
+      rgba(255, 255, 255, 0.1), 
+      rgba(255, 255, 255, 0.2), 
+      rgba(255, 255, 255, 0.1), 
       transparent);
     height: 1px;
-    box-shadow: 0 0 10px 1px rgba(var(--neon-cyan), 0.4);
-    opacity: 0.8;
+    opacity: 0.4;
   }
 
   @keyframes scan {
@@ -214,24 +208,13 @@
     }
   }
   
-  @keyframes borderGlow {
-    0%, 100% {
-      opacity: 0.5;
-      box-shadow: 0 0 5px rgba(var(--neon-cyan), 0.3);
-    }
-    50% {
-      opacity: 0.2;
-      box-shadow: 0 0 15px rgba(var(--neon-cyan), 0.1);
-    }
-  }
-  
-  /* Enhanced futuristic cyber panels */
+  /* Enhanced futuristic panels */
   .dark .cyber-panel {
-    background: linear-gradient(135deg, rgba(18, 20, 24, 0.9), rgba(8, 9, 12, 0.95));
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: linear-gradient(135deg, rgba(10, 11, 14, 0.9), rgba(5, 6, 7, 0.95));
+    border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: var(--radius);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4), 
-                inset 0 1px 0 rgba(255, 255, 255, 0.03);
+                inset 0 1px 0 rgba(255, 255, 255, 0.02);
     position: relative;
     overflow: hidden;
   }
@@ -245,28 +228,26 @@
     height: 1px;
     background: linear-gradient(90deg, 
       transparent, 
-      rgba(var(--neon-cyan), 0.15), 
+      rgba(255, 255, 255, 0.1), 
       transparent);
   }
   
   .dark .tech-shadow {
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4),
-                0 0 15px rgba(0, 0, 0, 0.3),
-                0 0 1px rgba(255, 255, 255, 0.03);
+                0 0 15px rgba(0, 0, 0, 0.3);
   }
   
   /* Enhanced terminal-inspired text */
   .dark .terminal-text {
     font-family: "JetBrains Mono", "SF Mono", monospace;
     color: rgba(255, 255, 255, 0.95);
-    text-shadow: 0 0 4px rgba(var(--neon-highlight), 0.3);
-    letter-spacing: 0.05em;
+    letter-spacing: 0.02em;
   }
   
-  /* Advanced futuristic cards with refined hover effects */
+  /* Advanced futuristic cards */
   .dark .future-card {
-    background: rgba(16, 18, 22, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(10, 11, 14, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.04);
     transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -274,37 +255,23 @@
   
   .dark .future-card:hover {
     transform: translateY(-4px);
-    border-color: rgba(var(--neon-cyan), 0.2);
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3),
-                0 0 5px rgba(var(--neon-cyan), 0.15);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
   }
   
-  /* Enhanced neon accent highlight for important elements */
-  .dark .neon-accent {
+  /* Subtle accent highlight for important elements */
+  .dark .subtle-accent {
     position: relative;
   }
   
-  .dark .neon-accent::after {
+  .dark .subtle-accent::after {
     content: "";
     position: absolute;
     bottom: -2px;
     left: 0;
     width: 100%;
     height: 1px;
-    background: rgba(var(--neon-cyan), 0.8);
-    box-shadow: 0 0 8px 1px rgba(var(--neon-cyan), 0.6);
-    animation: pulseNeon 4s infinite ease-in-out;
-  }
-  
-  @keyframes pulseNeon {
-    0%, 100% {
-      opacity: 0.8;
-      box-shadow: 0 0 8px 1px rgba(var(--neon-cyan), 0.6);
-    }
-    50% {
-      opacity: 0.4;
-      box-shadow: 0 0 4px 0px rgba(var(--neon-cyan), 0.3);
-    }
+    background: rgba(255, 255, 255, 0.2);
   }
   
   /* Refined component spacing */
@@ -314,15 +281,15 @@
   }
   
   .dark .component-grid {
-    gap: 1.75rem;  /* More distinct spacing in dark mode */
+    gap: 1.75rem;
   }
   
-  /* Enhanced minimalist dividers */
+  /* Minimal dividers */
   .dark .future-divider {
     height: 1px;
     background: linear-gradient(to right, 
       transparent,
-      rgba(var(--neon-cyan), 0.15),
+      rgba(255, 255, 255, 0.1),
       transparent);
     margin: 2rem 0;
   }
@@ -330,14 +297,14 @@
   /* Data display elements */
   .dark .data-display {
     font-family: "JetBrains Mono", monospace;
-    background: rgba(8, 9, 12, 0.7);
-    border: 1px solid rgba(var(--neon-blue), 0.15);
+    background: rgba(5, 6, 7, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius);
     padding: 1rem;
     color: rgba(255, 255, 255, 0.9);
   }
   
-  /* Holographic effect for premium features */
+  /* Subtle holographic effect */
   .dark .holographic {
     position: relative;
     overflow: hidden;
@@ -353,7 +320,7 @@
     background: linear-gradient(
       45deg,
       transparent,
-      rgba(255, 255, 255, 0.03),
+      rgba(255, 255, 255, 0.02),
       transparent
     );
     transform: rotate(45deg);
@@ -367,6 +334,52 @@
     }
     100% {
       transform: translateX(-50%) translateY(-50%) rotate(360deg);
+    }
+  }
+
+  /* Particles container for dark mode */
+  .dark .particles-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: 0;
+    pointer-events: none;
+  }
+  
+  /* Dark mode particle */
+  .dark .particle {
+    position: absolute;
+    background: #fff;
+    border-radius: 50%;
+    opacity: 0.1;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    transition: opacity 1s ease;
+  }
+  
+  .dark .particle.active {
+    opacity: 0.4;
+    transition: opacity 0.3s ease;
+  }
+  
+  /* Ensure full dashboard visibility on mobile */
+  @media (max-width: 767px) {
+    .full-mobile-view {
+      width: 100% !important;
+      height: auto !important;
+      min-height: 280px !important;
+    }
+    
+    .mobile-responsive-content {
+      padding: 0.75rem !important;
+    }
+    
+    .mobile-responsive-grid {
+      grid-template-columns: 1fr !important;
+      gap: 0.75rem !important;
     }
   }
 }
