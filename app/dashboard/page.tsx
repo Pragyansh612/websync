@@ -43,7 +43,7 @@ type Alert = {
 export default function DashboardPage() {
   // Create supabase client using the same method as your layout and middleware
   const supabase = createClientComponentClient()
-  
+
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -129,13 +129,13 @@ export default function DashboardPage() {
       const { data: websitesData, error: websitesError } = await supabase
         .from("websites")
         .select(`
-          id, 
-          name, 
-          url, 
-          status,
-          last_checked_at,
-          user_id
-        `)
+    id, 
+    name, 
+    url, 
+    status,
+    last_checked_at,
+    user_id
+  `)
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
 
@@ -150,31 +150,38 @@ export default function DashboardPage() {
         // For each website, get its latest check data
         const websitesWithStatus = await Promise.all(
           websitesData.map(async (website) => {
-            const { data: latestCheck } = await supabase
+            // Get the latest 100 checks to calculate proper statistics
+            const { data: checksData } = await supabase
               .from("website_checks")
               .select("status_code, response_time_ms, is_up, error_message")
               .eq("website_id", website.id)
               .order("timestamp", { ascending: false })
-              .limit(1)
-              .single()
-
-            // Calculate uptime based on is_up history
-            const { data: uptimeData } = await supabase
-              .from("website_checks")
-              .select("is_up")
-              .eq("website_id", website.id)
-              .order("timestamp", { ascending: false })
               .limit(100)
 
-            const uptimePercentage = uptimeData && uptimeData.length > 0
-              ? ((uptimeData.filter((check) => check.is_up).length / uptimeData.length) * 100).toFixed(2) + "%"
-              : "N/A"
+            // Calculate averages and stats
+            let uptimePercentage = "100.00%"
+            let avgResponseTime = 0
+            let isUp = true
 
-            // Fix: Map "active" status to "up" for display
-            let displayStatus = "down"
-            if (website.status === "active" || website.status === "up" || (latestCheck && latestCheck.is_up)) {
-              displayStatus = "up"
-            } else if (latestCheck && latestCheck.status_code >= 400 && latestCheck.status_code < 500) {
+            if (checksData && checksData.length > 0) {
+              const upChecks = checksData.filter(check => check.is_up === true).length
+              uptimePercentage = ((upChecks / checksData.length) * 100).toFixed(2) + "%"
+
+              // Calculate average response time
+              const totalResponseTime = checksData.reduce((sum, check) =>
+                sum + (check.response_time_ms || 0), 0)
+              avgResponseTime = checksData.length > 0 ?
+                Math.round(totalResponseTime / checksData.length) : 0
+
+              // Latest check status
+              isUp = checksData[0]?.is_up || false
+            }
+
+            // Use the same logic as websites/page.tsx
+            let displayStatus = "up"
+            if (!isUp) {
+              displayStatus = "down"
+            } else if (parseFloat(uptimePercentage) < 99.5 || avgResponseTime > 300) {
               displayStatus = "degraded"
             }
 
@@ -182,10 +189,10 @@ export default function DashboardPage() {
               ...website,
               status: displayStatus,
               uptime: uptimePercentage,
-              response_time_ms: latestCheck?.response_time_ms || 0,
-              error_message: latestCheck?.error_message,
+              response_time_ms: avgResponseTime,
+              error_message: checksData && checksData[0]?.error_message,
             }
-          }),
+          })
         )
 
         setWebsites(websitesWithStatus)

@@ -25,7 +25,6 @@ interface Alert {
   is_resolved: boolean
   created_at: string
   resolved_at: string | null
-  websites?: { name: string; url: string } | { name: string; url: string }[] | null
 }
 
 interface AlertStats {
@@ -36,6 +35,12 @@ interface AlertStats {
   info: number
   resolved: number
 }
+
+interface WebsiteInfo {
+  name: string;
+  url: string;
+}
+
 
 export default function AlertsPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -59,45 +64,43 @@ export default function AlertsPage() {
           return
         }
 
+        // Get user ID
+        const userId = (await supabase.auth.getUser()).data.user?.id;
+        
+        // First, get all websites for this user
+        const { data: websitesData, error: websitesError } = await supabase
+          .from('websites')
+          .select('id, name, url')
+          .eq('user_id', userId);
+          
+        if (websitesError) throw websitesError;
+        
+        // Create a map of website IDs to their name and URL for faster lookup
+        const websiteMap: Record<string, WebsiteInfo> = {};
+        websitesData?.forEach(website => {
+          websiteMap[website.id] = {
+            name: website.name || 'Unnamed Website',
+            url: website.url
+          };
+        });
+        
+        // Now get all alerts that reference these websites
         const { data: alertsData, error } = await supabase
           .from('alerts')
-          .select(`
-    id,
-    website_id,
-    type,
-    severity,
-    description,
-    is_resolved,
-    created_at,
-    resolved_at,
-    websites:websites(name, url)
-  `)
-          .eq('websites.user_id', (await supabase.auth.getUser()).data.user?.id)
+          .select('*')
           .order('created_at', { ascending: false });
+          
+        if (error) throw error;
 
-        // And update the formattedAlerts mapping:
+        // Format the alerts with website info from our map
         const formattedAlerts: Alert[] = alertsData?.map(alert => {
-          // Extract website name and URL safely regardless of data structure
-          let websiteName = 'Unknown Website';
-          let websiteUrl = '#';
-
-          if (alert.websites) {
-            if (Array.isArray(alert.websites)) {
-              // Handle case where websites is an array
-              websiteName = alert.websites[0]?.name || 'Unknown Website';
-              websiteUrl = alert.websites[0]?.url || '#';
-            } else {
-              // Handle case where websites is an object
-              // websiteName = alert.websites.name || 'Unknown Website';
-              // websiteUrl = alert.websites.url || '#';
-            }
-          }
-
+          const website = websiteMap[alert.website_id] || { name: 'Unknown Website', url: '#' };
+          
           return {
             id: alert.id,
             website_id: alert.website_id,
-            website_name: websiteName,
-            website_url: websiteUrl,
+            website_name: website.name,
+            website_url: website.url,
             type: alert.type,
             severity: alert.severity,
             description: alert.description,
@@ -121,7 +124,7 @@ export default function AlertsPage() {
     }
 
     fetchAlerts()
-  }, [router, toast])
+  }, [router, toast, supabase])
 
   // Calculate time ago from timestamp
   const getTimeAgo = (timestamp: string) => {

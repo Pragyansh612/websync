@@ -278,11 +278,16 @@ export default function WebsitesPage() {
 
     if (!stats.is_up) return 'down'
 
+    // Match the exact same threshold as dashboard.tsx
     if (stats.uptime_percentage < 99.5 || stats.avg_response_time > 300) {
       return 'degraded'
     }
 
     return 'up'
+  }
+
+  const formatUptimePercentage = (percentage: number): string => {
+    return percentage.toFixed(2) + "%"
   }
 
   // Filter and sort websites

@@ -7,16 +7,16 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { 
-  ArrowLeft, 
-  Check, 
-  Clock, 
-  ExternalLink, 
-  RefreshCw, 
-  X, 
-  AlertCircle, 
-  ArrowUpRight, 
-  Settings 
+import {
+  ArrowLeft,
+  Check,
+  Clock,
+  ExternalLink,
+  RefreshCw,
+  X,
+  AlertCircle,
+  ArrowUpRight,
+  Settings
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { motion } from "framer-motion"
@@ -84,9 +84,9 @@ export default function WebsiteDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [animateCharts, setAnimateCharts] = useState(false)
   const [websiteData, setWebsiteData] = useState<WebsiteData | null>(null)
-  const [performanceHistory, setPerformanceHistory] = useState<{date: string, responseTime: number}[]>([])
-  const [uptimeHistory, setUptimeHistory] = useState<{date: string, uptime: number}[]>([])
-  const [errorLog, setErrorLog] = useState<{message: string, date: string, duration: string}[]>([])
+  const [performanceHistory, setPerformanceHistory] = useState<{ date: string, responseTime: number }[]>([])
+  const [uptimeHistory, setUptimeHistory] = useState<{ date: string, uptime: number }[]>([])
+  const [errorLog, setErrorLog] = useState<{ message: string, date: string, duration: string }[]>([])
 
   const websiteId = params.id as string
 
@@ -123,10 +123,10 @@ export default function WebsiteDetailPage() {
       if (alertsError) throw alertsError
 
       // Calculate uptime percentage
-      const recentChecks = checks.filter(check => 
+      const recentChecks = checks.filter(check =>
         new Date(check.timestamp) > subDays(new Date(), 30)
       )
-      
+
       const uptimePercentage = recentChecks.length > 0
         ? (recentChecks.filter(check => check.is_up).length / recentChecks.length) * 100
         : 100
@@ -135,7 +135,7 @@ export default function WebsiteDetailPage() {
       const recentResponseTimes = recentChecks
         .filter(check => check.is_up && check.response_time_ms > 0)
         .map(check => check.response_time_ms)
-      
+
       const avgResponseTime = recentResponseTimes.length > 0
         ? Math.round(recentResponseTimes.reduce((sum, time) => sum + time, 0) / recentResponseTimes.length)
         : 0
@@ -148,9 +148,9 @@ export default function WebsiteDetailPage() {
         .filter(check => new Date(check.timestamp) > subDays(new Date(), 14))
         .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
-      const performanceData: {date: string, responseTime: number}[] = []
-      const uptimeData: {date: string, uptime: number}[] = []
-      
+      const performanceData: { date: string, responseTime: number }[] = []
+      const uptimeData: { date: string, uptime: number }[] = []
+
       // Group checks by day
       const checksByDay = last14DaysChecks.reduce((acc, check) => {
         const day = check.timestamp.split('T')[0]
@@ -158,50 +158,50 @@ export default function WebsiteDetailPage() {
         acc[day].push(check)
         return acc
       }, {} as Record<string, WebsiteCheck[]>)
-      
+
       // Get last 14 days
       const last14Days = Array.from({ length: 14 }, (_, i) => {
         const date = subDays(new Date(), 13 - i)
         return format(date, 'yyyy-MM-dd')
       })
-      
+
       // Prepare data for each day
       last14Days.forEach(day => {
         const dayChecks = checksByDay[day] || []
-        
+
         // Calculate average response time for the day
         const dayResponseTimes = dayChecks
-          .filter((check:any) => check.is_up && check.response_time_ms > 0)
-          .map((check:any) => check.response_time_ms)
-        
+          .filter((check: any) => check.is_up && check.response_time_ms > 0)
+          .map((check: any) => check.response_time_ms)
+
         const avgDayResponseTime = dayResponseTimes.length > 0
-          ? Math.round(dayResponseTimes.reduce((sum:any, time:any) => sum + time, 0) / dayResponseTimes.length)
+          ? Math.round(dayResponseTimes.reduce((sum: any, time: any) => sum + time, 0) / dayResponseTimes.length)
           : 0
-        
+
         performanceData.push({
           date: day,
           responseTime: avgDayResponseTime || 0
         })
-        
+
         // Calculate uptime for the day
         const dayUptime = dayChecks.length > 0
-          ? (dayChecks.filter((check:any) => check.is_up).length / dayChecks.length) * 100
+          ? (dayChecks.filter((check: any) => check.is_up).length / dayChecks.length) * 100
           : 100
-        
+
         uptimeData.push({
           date: day,
           uptime: Number(dayUptime.toFixed(2))
         })
       })
-      
+
       // Prepare error log data
       const errorLogData = alerts
         .filter(alert => alert.type === 'downtime' || alert.type === 'error')
         .map(alert => {
-          const duration = alert.resolved_at 
+          const duration = alert.resolved_at
             ? formatDistance(new Date(alert.resolved_at), new Date(alert.created_at))
             : 'Ongoing'
-          
+
           return {
             message: alert.description,
             date: format(new Date(alert.created_at), 'MMM dd, yyyy HH:mm'),
@@ -217,18 +217,18 @@ export default function WebsiteDetailPage() {
         avgResponseTime,
         recentErrors
       })
-      
+
       setPerformanceHistory(performanceData)
       setUptimeHistory(uptimeData)
       setErrorLog(errorLogData)
-      
+
       setIsLoading(false)
-      
+
       // Trigger chart animation after data is loaded
       setTimeout(() => {
         setAnimateCharts(true)
       }, 500)
-      
+
     } catch (error) {
       console.error('Error fetching website data:', error)
       setIsLoading(false)
@@ -268,10 +268,10 @@ export default function WebsiteDetailPage() {
 
   const getStatusInfo = useMemo(() => {
     if (!websiteData?.website) return { status: 'unknown', label: 'Unknown' }
-    
+
     const latestCheck = websiteData.checks[0]
     if (!latestCheck) return { status: 'unknown', label: 'Unknown' }
-    
+
     return {
       status: latestCheck.is_up ? 'up' : 'down',
       label: latestCheck.is_up ? 'Up' : 'Down'
@@ -284,9 +284,11 @@ export default function WebsiteDetailPage() {
   }, [websiteData])
 
   const getCheckInterval = useMemo(() => {
-    if (!websiteData?.website?.monitoring_interval) return 'Unknown'
-    const minutes = Math.floor(websiteData.website.monitoring_interval / 60)
-    return `${minutes} minutes`
+    if (!websiteData?.website?.monitoring_interval) return 'Not set'
+    const interval = websiteData.website.monitoring_interval
+    // Convert seconds to minutes and handle zero case
+    const minutes = Math.floor(interval / 60)
+    return minutes > 0 ? `${minutes} minutes` : `${interval} seconds`
   }, [websiteData])
 
   const containerAnimation = {
@@ -561,10 +563,27 @@ export default function WebsiteDetailPage() {
                       <div>
                         <h3 className="text-sm font-medium text-muted-foreground mb-2">Status</h3>
                         <Badge
-                          variant={websiteData.website.status === "active" ? "outline" : "secondary"}
-                          className={websiteData.website.status === "active" ? "bg-green-500/10 text-green-500" : ""}
+                          variant={
+                            getStatusInfo.status === "up" ? "outline" : getStatusInfo.status === "down" ? "destructive" : "secondary"
+                          }
+                          className={
+                            getStatusInfo.status === "up"
+                              ? "bg-green-500/10 text-green-500"
+                              : getStatusInfo.status === "down"
+                                ? ""
+                                : "bg-yellow-500/10 text-yellow-500"
+                          }
                         >
-                          {websiteData.website.status.charAt(0).toUpperCase() + websiteData.website.status.slice(1)}
+                          <span className="flex items-center gap-1">
+                            {getStatusInfo.status === "up" ? (
+                              <Check className="h-3 w-3" />
+                            ) : getStatusInfo.status === "down" ? (
+                              <X className="h-3 w-3" />
+                            ) : (
+                              <AlertCircle className="h-3 w-3" />
+                            )}
+                            {getStatusInfo.label}
+                          </span>
                         </Badge>
                       </div>
                       <div>
@@ -711,7 +730,7 @@ export default function WebsiteDetailPage() {
                 </CardHeader>
                 <CardContent className="h-[400px]">
                   <div className="h-full w-full">
-                  <div className="h-full w-full flex flex-col">
+                    <div className="h-full w-full flex flex-col">
                       <div className="flex-1 relative">
                         <div className="absolute inset-0 flex items-end">
                           {performanceHistory.map((data, index) => (
@@ -788,7 +807,7 @@ export default function WebsiteDetailPage() {
                                 style={{
                                   backgroundColor:
                                     data.uptime < 95 ? "hsla(var(--destructive)/0.7)" :
-                                    data.uptime < 99 ? "hsla(var(--warning)/0.7)" : "hsla(var(--success)/0.7)",
+                                      data.uptime < 99 ? "hsla(var(--warning)/0.7)" : "hsla(var(--success)/0.7)",
                                 }}
                                 whileHover={{
                                   scale: 1.05,
