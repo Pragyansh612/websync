@@ -54,74 +54,56 @@ export default function AlertsPage() {
   const supabase = createClientComponentClient()
 
   useEffect(() => {
-    async function fetchAlerts() {
-      try {
-        setLoading(true)
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-        if (!session) {
-          // Redirect to login if not authenticated
-          router.push('/login')
-          return
-        }
-
-        // Get user ID
-        const userId = (await supabase.auth.getUser()).data.user?.id;
-        
-        // First, get all websites for this user
-        const { data: websitesData, error: websitesError } = await supabase
-          .from('websites')
-          .select('id, name, url')
-          .eq('user_id', userId);
-          
-        if (websitesError) throw websitesError;
-        
-        // Create a map of website IDs to their name and URL for faster lookup
-        const websiteMap: Record<string, WebsiteInfo> = {};
-        websitesData?.forEach(website => {
-          websiteMap[website.id] = {
-            name: website.name || 'Unnamed Website',
-            url: website.url
-          };
-        });
-        
-        // Now get all alerts that reference these websites
-        const { data: alertsData, error } = await supabase
-          .from('alerts')
-          .select('*')
-          .order('created_at', { ascending: false });
-          
-        if (error) throw error;
-
-        // Format the alerts with website info from our map
-        const formattedAlerts: Alert[] = alertsData?.map(alert => {
-          const website = websiteMap[alert.website_id] || { name: 'Unknown Website', url: '#' };
-          
-          return {
-            id: alert.id,
-            website_id: alert.website_id,
-            website_name: website.name,
-            website_url: website.url,
-            type: alert.type,
-            severity: alert.severity,
-            description: alert.description,
-            is_resolved: alert.is_resolved,
-            created_at: alert.created_at,
-            resolved_at: alert.resolved_at
-          };
-        }) || [];
-
-        setAlerts(formattedAlerts)
-      } catch (error) {
-        console.error('Error fetching alerts:', error)
-        toast({
-          title: "Error",
-          description: "Failed to load alerts. Please try again.",
-          variant: "destructive"
-        })
-      } finally {
-        setLoading(false)
-      }
+async function fetchAlerts() {
+  try {
+    setLoading(true)
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    if (!session) {
+      router.push('/login')
+      return
     }
+
+    // Get user ID
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    
+    // Get alerts for websites owned by this user using a JOIN query
+    const { data: alertsData, error } = await supabase
+      .from('alerts')
+      .select(`
+        *,
+        websites!inner(id, name, url, user_id)
+      `)
+      .eq('websites.user_id', userId)
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
+
+    // Format the alerts with website info from the joined data
+    const formattedAlerts: Alert[] = alertsData?.map(alert => ({
+      id: alert.id,
+      website_id: alert.website_id,
+      website_name: alert.websites.name || 'Unnamed Website',
+      website_url: alert.websites.url,
+      type: alert.type,
+      severity: alert.severity,
+      description: alert.description,
+      is_resolved: alert.is_resolved,
+      created_at: alert.created_at,
+      resolved_at: alert.resolved_at
+    })) || [];
+
+    setAlerts(formattedAlerts)
+  } catch (error) {
+    console.error('Error fetching alerts:', error)
+    toast({
+      title: "Error",
+      description: "Failed to load alerts. Please try again.",
+      variant: "destructive"
+    })
+  } finally {
+    setLoading(false)
+  }
+}
 
     fetchAlerts()
   }, [router, toast, supabase])
@@ -480,7 +462,7 @@ function AlertList({ alerts, onResolve, getTimeAgo }: AlertListProps) {
                   </div>
                 )}
               </div>
-              <div className="flex-1 space-y-1">
+              <Link className="flex-1 space-y-1" href={`/dashboard/alerts/${alert.id}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium">{alert.website_name}</p>
@@ -502,7 +484,7 @@ function AlertList({ alerts, onResolve, getTimeAgo }: AlertListProps) {
                 </div>
                 <p className="text-sm font-medium">{alert.type}</p>
                 <p className="text-sm text-muted-foreground">{alert.description}</p>
-              </div>
+              </Link>
               <div className="flex gap-2">
                 <Button variant="ghost" size="icon" asChild className="hover:bg-primary/10">
                   <Link href={`/dashboard/website/${alert.website_id}`}>

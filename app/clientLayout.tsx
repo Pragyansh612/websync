@@ -10,6 +10,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { AnimatePresence } from "framer-motion"
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useEffect } from "react"
+import { usePathname } from "next/navigation"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -19,6 +20,10 @@ export default function ClientLayout({
   children: React.ReactNode
 }>) {
   const supabase = createClientComponentClient()
+  const pathname = usePathname()
+  
+  // Hide footer on dashboard pages
+  const isDashboard = pathname?.startsWith('/dashboard')
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -35,10 +40,8 @@ export default function ClientLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <div className="flex min-h-screen flex-col">
             <Navbar />
-            <AnimatePresence mode="wait">
-              <main className="flex-1">{children}</main>
-            </AnimatePresence>
-            <Footer />
+            <main className="flex-1">{children}</main>
+            {!isDashboard && <Footer />}
             <Toaster />
           </div>
         </ThemeProvider>

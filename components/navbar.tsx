@@ -20,13 +20,6 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
 
-const routes = [
-  { name: "Home", path: "/" },
-  { name: "Features", path: "/features" },
-  { name: "Dashboard", path: "/dashboard" },
-  { name: "Contact", path: "/contact" },
-]
-
 export default function Navbar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
@@ -62,6 +55,13 @@ export default function Navbar() {
       window.removeEventListener("scroll", handleScroll)
     }
   }, [supabase])
+
+  const routes = [
+    { name: "Home", path: "/" },
+    { name: "Features", path: "/features" },
+    ...(isLoggedIn ? [{ name: "Dashboard", path: "/dashboard" }] : []),
+    { name: "Contact", path: "/contact" },
+  ]
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut()

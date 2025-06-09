@@ -5,7 +5,7 @@ import { useRef, useState, useEffect, useMemo } from "react"
 import { type MotionStyle, m, useInView, useReducedMotion } from "framer-motion"
 import { ArrowRight, Check, Zap, LineChart, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import ParticleField from "../ui/ParticleField"
+// import ParticleField from "../ui/ParticleField"
 
 // const getCardStyle = (i: number): MotionStyle => ({
 //   opacity: 1,
@@ -210,7 +210,7 @@ export default function HeroSection() {
       <div className="grid-lines-container dark:hidden" />
 
       {/* Particles for Dark Mode */}
-      {isDarkMode && isMounted && !prefersReducedMotion && (
+      {/* {isDarkMode && isMounted && !prefersReducedMotion && (
         <ParticleField
           count={100}
           speed={0.3}
@@ -220,7 +220,7 @@ export default function HeroSection() {
           interactionStrength={1.2}
           gridBased={true} // Use the grid-based layout for intersection points
         />
-      )}
+      )} */}
       <div className="container px-4 md:px-6 relative z-10">
         <m.div
           className="flex flex-col items-center justify-center text-center space-y-6 md:space-y-8 relative"
