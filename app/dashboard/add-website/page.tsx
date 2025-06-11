@@ -33,33 +33,33 @@ export default function AddWebsitePage() {
 
   const handleVerify = async () => {
     if (!url) return;
-  
+
     setIsLoading(true);
     setError(null);
-  
+
     try {
       // First, let's check if URL is valid
       const urlToCheck = url.startsWith("http") ? url : `https://${url}`;
-      
+
       try {
         // Validate URL format
         new URL(urlToCheck);
       } catch (e) {
         throw new Error("Invalid URL format");
       }
-      
+
       // Direct browser check (quickly verify it's reachable)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      
+
       try {
         const response = await fetch(urlToCheck, {
           method: 'HEAD',
           signal: controller.signal,
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!response.ok) {
           throw new Error(`Website returned status: ${response.status}`);
         }
@@ -68,17 +68,17 @@ export default function AddWebsitePage() {
         // Continue with server verification even if browser check fails
         // (CORS or other browser limitations might prevent this check)
       }
-      
+
       // Now use our backend to verify the website (more thorough check)
       // This is commented out since we need to implement the endpoint first
       /*
       const { data } = await websiteApi.verifyWebsite(urlToCheck);
       setPreviewData(data);
       */
-      
+
       // If we reach here, website is verified
       setIsVerified(true);
-  
+
       // Set suggested name based on URL if not already set
       if (!name) {
         try {
@@ -88,7 +88,7 @@ export default function AddWebsitePage() {
           setName(url);
         }
       }
-      
+
       setIsLoading(false);
     } catch (e) {
       setIsLoading(false);
@@ -110,10 +110,45 @@ export default function AddWebsitePage() {
         throw new Error("User not authenticated")
       }
 
+      // Normalize the URL for checking
+      const normalizedUrl = url.startsWith("http") ? url : `https://${url}`
+
+      // Check for duplicate URL
+      const { data: existingWebsites, error: checkError } = await supabase
+        .from('websites')
+        .select('id, url, name')
+        .eq('user_id', user.id)
+        .eq('url', normalizedUrl)
+
+      if (checkError) {
+        throw new Error("Error checking for duplicate websites")
+      }
+
+      if (existingWebsites && existingWebsites.length > 0) {
+        throw new Error("This website URL is already being monitored")
+      }
+
+      // Check for duplicate name (optional - uncomment if you want to prevent duplicate names too)
+      /*
+      const { data: existingNames, error: nameCheckError } = await supabase
+        .from('websites')
+        .select('id, name')
+        .eq('user_id', user.id)
+        .eq('name', name || url)
+  
+      if (nameCheckError) {
+        throw new Error("Error checking for duplicate website names")
+      }
+  
+      if (existingNames && existingNames.length > 0) {
+        throw new Error("A website with this name already exists")
+      }
+      */
+
       // Prepare website data
       const websiteData = {
         user_id: user.id,
-        url: url.startsWith("http") ? url : `https://${url}`,
+        url: normalizedUrl,
         name: name || url,
         status: 'active',
         monitoring_interval: parseInt(checkInterval),
@@ -134,7 +169,7 @@ export default function AddWebsitePage() {
         try {
           // This is optional - trigger an immediate check on the backend
           await websiteApi.checkWebsite(data[0].id);
-          
+
           // Also trigger route discovery if needed
           if (checkContent) {
             await websiteApi.discoverRoutes(data[0].id);
@@ -157,13 +192,13 @@ export default function AddWebsitePage() {
   return (
     <div className="container max-w-4xl py-10">
       <div className="mb-8">
-        <Link
+        {/* <Link
           href="/dashboard"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-2"
         >
           <ArrowLeft className="mr-1 h-4 w-4" />
           Back to Dashboard
-        </Link>
+        </Link> */}
         <h1 className="text-3xl font-bold tracking-tight">Add Website</h1>
         <p className="text-muted-foreground">Start monitoring a new website with WebSync</p>
       </div>

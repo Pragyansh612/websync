@@ -14,6 +14,9 @@ import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import { motion, useScroll, useTransform, AnimatePresence } from "framer-motion"
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Pencil, Trash2 } from "lucide-react"
 
 type Website = {
   id: string
@@ -60,6 +63,12 @@ export default function DashboardPage() {
   const [recentAlerts, setRecentAlerts] = useState<Alert[]>([])
   const [performanceData, setPerformanceData] = useState<{ time: string; value: number }[]>([])
   const [isMobile, setIsMobile] = useState(false)
+  const [editingWebsite, setEditingWebsite] = useState<Website | null>(null)
+  const [editName, setEditName] = useState("")
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [websiteToDelete, setWebsiteToDelete] = useState<Website | null>(null)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const opacity = useTransform(scrollYProgress, [0, 0.2], [0, 1])
   const y = useTransform(scrollYProgress, [0, 0.2], [50, 0])
@@ -384,12 +393,120 @@ export default function DashboardPage() {
     },
   }
 
+  const handleEditWebsite = (website: Website) => {
+    setEditingWebsite(website)
+    setEditName(website.name)
+  }
+
+  const handleUpdateWebsite = async () => {
+    if (!editingWebsite || !editName.trim()) return
+
+    setIsUpdating(true)
+    try {
+      const { error } = await supabase
+        .from("websites")
+        .update({ name: editName.trim() })
+        .eq("id", editingWebsite.id)
+
+      if (error) {
+        console.error("Error updating website:", error)
+        toast({
+          title: "Update Failed",
+          description: "Failed to update website name. Please try again.",
+          variant: "destructive",
+        })
+      } else {
+        // Update local state
+        setWebsites(prev => prev.map(w =>
+          w.id === editingWebsite.id ? { ...w, name: editName.trim() } : w
+        ))
+
+        setEditingWebsite(null)
+        setEditName("")
+
+        toast({
+          title: "Website Updated",
+          description: "Website name has been updated successfully.",
+        })
+      }
+    } catch (error) {
+      console.error("Error updating website:", error)
+      toast({
+        title: "Update Failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const handleDeleteWebsite = async () => {
+    if (!websiteToDelete) return
+
+    setIsDeleting(true)
+    try {
+      // First delete all related records
+      const { error: checksError } = await supabase
+        .from("website_checks")
+        .delete()
+        .eq("website_id", websiteToDelete.id)
+
+      if (checksError) {
+        console.error("Error deleting website checks:", checksError)
+      }
+
+      const { error: alertsError } = await supabase
+        .from("alerts")
+        .delete()
+        .eq("website_id", websiteToDelete.id)
+
+      if (alertsError) {
+        console.error("Error deleting alerts:", alertsError)
+      }
+
+      // Then delete the website
+      const { error: websiteError } = await supabase
+        .from("websites")
+        .delete()
+        .eq("id", websiteToDelete.id)
+
+      if (websiteError) {
+        console.error("Error deleting website:", websiteError)
+        toast({
+          title: "Delete Failed",
+          description: "Failed to delete website. Please try again.",
+          variant: "destructive",
+        })
+      } else {
+        // Update local state
+        setWebsites(prev => prev.filter(w => w.id !== websiteToDelete.id))
+
+        setDeleteConfirmOpen(false)
+        setWebsiteToDelete(null)
+
+        toast({
+          title: "Website Deleted",
+          description: "Website and all related data have been deleted successfully.",
+        })
+      }
+    } catch (error) {
+      console.error("Error deleting website:", error)
+      toast({
+        title: "Delete Failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   // Render a card for mobile view of each website
   const renderWebsiteCard = (website: Website, index: number) => (
     <motion.div
       key={website.id}
-      className="rounded-lg border p-4 mb-4 hover:bg-primary/5 transition-colors cursor-pointer"
-      onClick={() => handleWebsiteClick(website.id)}
+      className="rounded-lg border p-4 mb-4 hover:bg-primary/5 transition-colors"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
@@ -397,33 +514,35 @@ export default function DashboardPage() {
       whileHover={{ backgroundColor: "rgba(var(--primary), 0.1)" }}
     >
       <div className="flex justify-between items-start mb-2">
-        <div>
+        <div className="flex-1 cursor-pointer" onClick={() => handleWebsiteClick(website.id)}>
           <h3 className="font-medium">{website.name}</h3>
           <p className="text-xs text-muted-foreground">{website.url}</p>
         </div>
-        <Badge
-          variant={website.status === "up" ? "outline" : website.status === "down" ? "destructive" : "secondary"}
-          className={
-            website.status === "up"
-              ? "bg-green-500/10 text-green-500 hover:bg-green-500/20 hover:text-green-500"
-              : website.status === "down"
-                ? ""
-                : "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 hover:text-yellow-500"
-          }
-        >
-          <span className="flex items-center gap-1">
-            {website.status === "up" ? (
-              <Check className="h-3 w-3" />
-            ) : website.status === "down" ? (
-              <X className="h-3 w-3" />
-            ) : (
-              <AlertCircle className="h-3 w-3" />
-            )}
-            {website.status.charAt(0).toUpperCase() + website.status.slice(1)}
-          </span>
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge
+            variant={website.status === "up" ? "outline" : website.status === "down" ? "destructive" : "secondary"}
+            className={
+              website.status === "up"
+                ? "bg-green-500/10 text-green-500 hover:bg-green-500/20 hover:text-green-500"
+                : website.status === "down"
+                  ? ""
+                  : "bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 hover:text-yellow-500"
+            }
+          >
+            <span className="flex items-center gap-1">
+              {website.status === "up" ? (
+                <Check className="h-3 w-3" />
+              ) : website.status === "down" ? (
+                <X className="h-3 w-3" />
+              ) : (
+                <AlertCircle className="h-3 w-3" />
+              )}
+              {website.status.charAt(0).toUpperCase() + website.status.slice(1)}
+            </span>
+          </Badge>
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-2 text-sm">
+      <div className="grid grid-cols-2 gap-2 text-sm mb-3">
         <div>
           <p className="text-muted-foreground">Uptime</p>
           <p>{website.uptime || "N/A"}</p>
@@ -437,8 +556,36 @@ export default function DashboardPage() {
           <p>{website.last_checked_at ? new Date(website.last_checked_at).toLocaleString() : "Never"}</p>
         </div>
       </div>
+      <div className="flex gap-2 pt-2 border-t">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1"
+          onClick={(e) => {
+            e.stopPropagation()
+            handleEditWebsite(website)
+          }}
+        >
+          <Pencil className="h-3 w-3 mr-1" />
+          Edit
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+          onClick={(e) => {
+            e.stopPropagation()
+            setWebsiteToDelete(website)
+            setDeleteConfirmOpen(true)
+          }}
+        >
+          <Trash2 className="h-3 w-3 mr-1" />
+          Delete
+        </Button>
+      </div>
     </motion.div>
   )
+
 
   return (
     <motion.div
@@ -471,7 +618,7 @@ export default function DashboardPage() {
             )}
             Refresh
           </Button>
-          <Link href="/add-website">
+          <Link href="/dashboard/add-website">
             <Button
               size="sm"
               className="shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 hover:shadow-primary/20 btn-shine"
@@ -742,9 +889,34 @@ export default function DashboardPage() {
                                   : "Never"}
                               </TableCell>
                               <TableCell>
-                                <Button variant="ghost" size="icon" className="hover:bg-primary/10">
-                                  <ExternalLink className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="hover:bg-primary/10"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleEditWebsite(website)
+                                    }}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="hover:bg-destructive/10 hover:text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setWebsiteToDelete(website)
+                                      setDeleteConfirmOpen(true)
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="hover:bg-primary/10">
+                                    <ExternalLink className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </TableCell>
                             </motion.tr>
                           ))}
@@ -913,6 +1085,102 @@ export default function DashboardPage() {
           </TabsContent>
         </Tabs>
       </motion.div>
+      <Dialog open={!!editingWebsite} onOpenChange={(open) => !open && setEditingWebsite(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Website</DialogTitle>
+            <DialogDescription>
+              Update the website name. To change the URL, you'll need to delete and re-add the website.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="name" className="text-right">
+                Name
+              </Label>
+              <Input
+                id="name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="col-span-3"
+                placeholder="Website name"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="url" className="text-right">
+                URL
+              </Label>
+              <Input
+                id="url"
+                value={editingWebsite?.url || ""}
+                disabled
+                className="col-span-3 bg-muted"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditingWebsite(null)}
+              disabled={isUpdating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateWebsite}
+              disabled={isUpdating || !editName.trim()}
+            >
+              {isUpdating && <RefreshCw className="h-4 w-4 animate-spin mr-2" />}
+              Update Website
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Website</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{websiteToDelete?.name}"? This action cannot be undone and will remove all monitoring data and alerts for this website.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-3 p-4 bg-destructive/10 rounded-lg border border-destructive/20">
+            <div className="rounded-full bg-destructive/20 p-2">
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </div>
+            <div>
+              <p className="font-medium text-destructive">This will permanently delete:</p>
+              <ul className="text-sm text-muted-foreground mt-1">
+                <li>• Website monitoring configuration</li>
+                <li>• All historical uptime data</li>
+                <li>• All alerts and notifications</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteConfirmOpen(false)
+                setWebsiteToDelete(null)
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteWebsite}
+              disabled={isDeleting}
+            >
+              {isDeleting && <RefreshCw className="h-4 w-4 animate-spin mr-2" />}
+              Delete Website
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   )
 }

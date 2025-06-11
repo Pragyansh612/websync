@@ -392,7 +392,7 @@ export default function WebsitesPage() {
             )}
             Refresh
           </Button>
-          <Link href="/add-website">
+          <Link href="/dashboard/add-website">
             <Button
               size="sm"
               className="shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 hover:shadow-primary/20 btn-shine"

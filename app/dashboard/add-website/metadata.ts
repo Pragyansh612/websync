@@ -10,11 +10,11 @@ export const metadata: Metadata = {
     title: "Add Website - WebSync Monitoring Platform",
     description:
       "Add a new website to WebSync's monitoring platform. Set up real-time monitoring, configure alerts, and start tracking your website's performance and uptime.",
-    url: "https://websync.io/add-website",
+    url: "https://websync.io/dashboard/add-website",
     type: "website",
     images: [
       {
-        url: "https://websync.io/og-images/add-website.jpg",
+        url: "https://websync.io/og-images/dashboard/add-website.jpg",
         width: 1200,
         height: 630,
         alt: "WebSync Add Website Interface",
@@ -26,10 +26,10 @@ export const metadata: Metadata = {
     title: "Add Website - WebSync Monitoring Platform",
     description:
       "Add a new website to WebSync's monitoring platform. Set up real-time monitoring, configure alerts, and start tracking your website's performance and uptime.",
-    images: ["https://websync.io/twitter-images/add-website.jpg"],
+    images: ["https://websync.io/twitter-images/dashboard/add-website.jpg"],
   },
   alternates: {
-    canonical: "https://websync.io/add-website",
+    canonical: "https://websync.io/dashboard/add-website",
   },
 }
 

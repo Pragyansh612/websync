@@ -166,7 +166,7 @@ export function DashboardSidebar({ pathname = "" }: DashboardSidebarProps) {
             className="w-full justify-start transition-all hover:bg-primary/10 hover:border-primary/30 hover:text-primary group"
             asChild
           >
-            <Link href="/add-website">
+            <Link href="/dashboard/add-website">
               <Plus className="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
               Add Website
             </Link>
