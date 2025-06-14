@@ -224,7 +224,7 @@ async function fetchAlerts() {
           <h1 className="text-2xl font-bold tracking-tight gradient-text">Alerts</h1>
           <p className="text-muted-foreground">Monitor and manage alerts for your websites</p>
         </div>
-        <div className="flex items-center gap-2">
+        {/* <div className="flex items-center gap-2">
           <Link href="/dashboard/alerts/settings">
             <Button
               variant="outline"
@@ -235,7 +235,7 @@ async function fetchAlerts() {
               Alert Settings
             </Button>
           </Link>
-        </div>
+        </div> */}
       </motion.div>
 
       {/* Alert Statistics */}

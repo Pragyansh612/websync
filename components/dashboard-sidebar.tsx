@@ -48,12 +48,12 @@ export function DashboardSidebar({ pathname = "" }: DashboardSidebarProps) {
       icon: LineChart,
       isActive: pathname.includes("/dashboard/reports"),
     },
-    {
-      label: "Notifications",
-      href: "/dashboard/notifications",
-      icon: Bell,
-      isActive: pathname.includes("/dashboard/notifications"),
-    },
+    // {
+    //   label: "Notifications",
+    //   href: "/dashboard/notifications",
+    //   icon: Bell,
+    //   isActive: pathname.includes("/dashboard/notifications"),
+    // },
   ]
 
   const settingsItems = [

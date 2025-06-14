@@ -396,12 +396,12 @@ export default function WebsiteDetailPage() {
               )}
               Refresh Status
             </Button>
-            <Link href={`/dashboard/website/${websiteData.website.id}/settings`}>
+            {/* <Link href={`/dashboard/website/${websiteData.website.id}/settings`}>
               <Button size="sm" className="shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
                 <Settings className="h-4 w-4 mr-2" />
                 Website Settings
               </Button>
-            </Link>
+            </Link> */}
           </div>
         </div>
       </motion.div>

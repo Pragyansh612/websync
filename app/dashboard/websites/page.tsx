@@ -43,6 +43,19 @@ import { useToast } from "@/components/ui/use-toast"
 import { motion, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/navigation"
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+  Cell
+} from "recharts"
 
 // Define the Website type based on your database schema
 interface Website {
@@ -79,6 +92,9 @@ export default function WebsitesPage() {
   const { toast } = useToast()
   const router = useRouter()
   const supabase = createClientComponentClient()
+  const [chartData, setChartData] = useState<Map<string, any[]>>(new Map())
+  const [showGraphs, setShowGraphs] = useState(false)
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
   // Fetch websites from the database
   useEffect(() => {
@@ -327,6 +343,272 @@ export default function WebsitesPage() {
       return sortOrder === "asc" ? comparison : -comparison
     })
 
+  const fetchChartData = async (websiteId: string) => {
+    try {
+      const { data: checksData, error } = await supabase
+        .from('website_checks')
+        .select('response_time_ms, is_up, status_code, timestamp')
+        .eq('website_id', websiteId)
+        .order('timestamp', { ascending: true })
+        .limit(50) // Last 50 checks for chart
+
+      if (error) throw error
+
+      if (checksData && checksData.length > 0) {
+        const processedData = checksData.map((check, index) => ({
+          time: new Date(check.timestamp).toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          responseTime: check.response_time_ms || 0,
+          uptime: check.is_up ? 100 : 0,
+          errors: check.is_up ? 0 : 1,
+          statusCode: check.status_code,
+          timestamp: check.timestamp,
+          // Add fill color based on uptime status
+          fill: check.is_up ? '#10b981' : '#ef4444'
+        }))
+
+        setChartData(prev => new Map(prev.set(websiteId, processedData)))
+      }
+    } catch (error) {
+      console.error('Error fetching chart data:', error)
+    }
+  }
+
+  // 4. Add custom tooltip components
+  const ResponseTimeTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-background border rounded-lg p-3 shadow-lg">
+          <p className="font-medium">{`Time: ${label}`}</p>
+          <p className="text-blue-600">
+            {`Response Time: ${payload[0].value}ms`}
+          </p>
+        </div>
+      )
+    }
+    return null
+  }
+
+  const UptimeTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const isUp = payload[0].value === 100
+      return (
+        <div className="bg-background border rounded-lg p-3 shadow-lg">
+          <p className="font-medium">{`Time: ${label}`}</p>
+          <p className={isUp ? "text-green-600" : "text-red-600"}>
+            {`Status: ${isUp ? 'Up' : 'Down'}`}
+          </p>
+        </div>
+      )
+    }
+    return null
+  }
+
+  const ErrorTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      const hasError = payload[0].value > 0
+      return (
+        <div className="bg-background border rounded-lg p-3 shadow-lg">
+          <p className="font-medium">{`Time: ${label}`}</p>
+          <p className={hasError ? "text-red-600" : "text-green-600"}>
+            {`Errors: ${payload[0].value}`}
+          </p>
+        </div>
+      )
+    }
+    return null
+  }
+
+  // 5. Add function to get color based on performance
+  const getResponseTimeColor = (value: number) => {
+    if (value <= 200) return '#10b981' // green
+    if (value <= 500) return '#f59e0b' // amber
+    return '#ef4444' // red
+  }
+
+  const getUptimeColor = (value: number) => {
+    if (value === 100) return '#10b981' // green
+    if (value === 0) return '#ef4444' // red
+    return '#f59e0b' // amber
+  }
+
+  // 6. Add expandable row component (insert before the main return statement)
+  const ExpandableRow = ({ website, isExpanded, onToggle }: any) => {
+    const data = chartData.get(website.id) || []
+
+    useEffect(() => {
+      if (isExpanded && data.length === 0) {
+        fetchChartData(website.id)
+      }
+    }, [isExpanded, website.id, data.length])
+
+    if (!isExpanded) return null
+
+    return (
+      <TableRow>
+        <TableCell colSpan={6} className="p-0">
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: 'easeInOut' }}
+            className="overflow-hidden"
+          >
+            <div className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-t">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                {/* Response Time Chart */}
+                <Card className="glass-card">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium">Response Time</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={data}>
+                          <defs>
+                            <linearGradient id="responseGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.5} />
+                          <XAxis
+                            dataKey="time"
+                            tick={{ fontSize: 10 }}
+                            stroke="#6b7280"
+                          />
+                          <YAxis
+                            tick={{ fontSize: 10 }}
+                            stroke="#6b7280"
+                            label={{ value: 'ms', angle: -90, position: 'insideLeft' }}
+                          />
+                          <Tooltip content={<ResponseTimeTooltip />} />
+                          <Line
+                            type="monotone"
+                            dataKey="responseTime"
+                            stroke="#3b82f6"
+                            strokeWidth={2}
+                            fill="url(#responseGradient)"
+                            dot={{ fill: '#3b82f6', r: 3 }}
+                            activeDot={{ r: 5, stroke: '#3b82f6', strokeWidth: 2 }}
+                            animationDuration={1000}
+                            animationEasing="ease-in-out"
+                          />
+                          <ReferenceLine y={500} stroke="#f59e0b" strokeDasharray="5 5" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Uptime Chart */}
+                <Card className="glass-card">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium">Uptime Status</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={data}>
+                          <defs>
+                            <linearGradient id="uptimeGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0.1} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.5} />
+                          <XAxis
+                            dataKey="time"
+                            tick={{ fontSize: 10 }}
+                            stroke="#6b7280"
+                          />
+                          <YAxis
+                            domain={[0, 100]}
+                            tick={{ fontSize: 10 }}
+                            stroke="#6b7280"
+                            label={{ value: '%', angle: -90, position: 'insideLeft' }}
+                          />
+                          <Tooltip content={<UptimeTooltip />} />
+                          <Bar
+                            dataKey="uptime"
+                            radius={[2, 2, 0, 0]}
+                            animationDuration={1000}
+                            animationEasing="ease-in-out"
+                          >
+                            {data.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={getUptimeColor(entry.uptime)} />
+                            ))}
+                          </Bar>
+                          <ReferenceLine y={99.9} stroke="#f59e0b" strokeDasharray="5 5" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Error Chart */}
+                <Card className="glass-card">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium">Error Count</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={data}>
+                          <defs>
+                            <linearGradient id="errorGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8} />
+                              <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.5} />
+                          <XAxis
+                            dataKey="time"
+                            tick={{ fontSize: 10 }}
+                            stroke="#6b7280"
+                          />
+                          <YAxis
+                            tick={{ fontSize: 10 }}
+                            stroke="#6b7280"
+                            label={{ value: 'Errors', angle: -90, position: 'insideLeft' }}
+                          />
+                          <Tooltip content={<ErrorTooltip />} />
+                          <Bar
+                            dataKey="errors"
+                            fill="url(#errorGradient)"
+                            radius={[2, 2, 0, 0]}
+                            animationDuration={1000}
+                            animationEasing="ease-in-out"
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+              </div>
+            </div>
+          </motion.div>
+        </TableCell>
+      </TableRow>
+    )
+  }
+
+  const toggleRowExpansion = (websiteId: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(websiteId)) {
+        newSet.delete(websiteId)
+      } else {
+        newSet.add(websiteId)
+      }
+      return newSet
+    })
+  }
+
   const containerAnimation = {
     hidden: { opacity: 0 },
     visible: {
@@ -527,19 +809,26 @@ export default function WebsitesPage() {
                         const responseTime = stats ? `${stats.avg_response_time}ms` : "0ms"
 
                         return (
-                          <motion.tr
+                          <>                          <motion.tr
                             key={website.id}
-                            className="hover:bg-primary/5 transition-colors"
+                            className="hover:bg-primary/5 transition-colors cursor-pointer"
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                             transition={{ duration: 0.3, delay: index * 0.05 }}
                             whileHover={{ backgroundColor: "rgba(var(--primary), 0.1)" }}
+                            onClick={() => toggleRowExpansion(website.id)}
                           >
                             <TableCell className="font-medium">
-                              <div className="flex flex-col">
-                                <span>{website.name || "Unnamed Website"}</span>
-                                <span className="text-xs text-muted-foreground">{website.url}</span>
+                              <div className="flex items-center gap-2">
+                                <ChevronDown
+                                  className={`h-4 w-4 transition-transform ${expandedRows.has(website.id) ? 'rotate-0' : '-rotate-90'
+                                    }`}
+                                />
+                                <div className="flex flex-col">
+                                  <span>{website.name || "Unnamed Website"}</span>
+                                  <span className="text-xs text-muted-foreground">{website.url}</span>
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -618,6 +907,11 @@ export default function WebsitesPage() {
                               </div>
                             </TableCell>
                           </motion.tr>
+                            <ExpandableRow
+                              website={website}
+                              isExpanded={expandedRows.has(website.id)}
+                              onToggle={() => toggleRowExpansion(website.id)}
+                            /></>
                         )
                       })}
                     </AnimatePresence>
