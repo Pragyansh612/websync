@@ -285,17 +285,17 @@ export default function FeaturesPage() {
                 title: "Custom Alerts & Notifications",
                 description: "Get notified your way when issues arise",
                 details:
-                  "Configure alerts via email, SMS, Slack, or webhooks with customizable thresholds and schedules. Set up escalation policies for critical issues.",
+                  "Configure alerts email with customizable thresholds and schedules. Set up escalation policies for critical issues.",
                 bullets: ["Multiple notification channels", "Customizable alert thresholds", "Escalation policies"],
               },
-              {
-                icon: <Code className="h-6 w-6 text-primary mb-2" />,
-                title: "Webhook & API Integrations",
-                description: "Connect with your existing tools and workflows",
-                details:
-                  "Seamlessly integrate with your development pipeline, CI/CD tools, and other services via our robust API and webhook support.",
-                bullets: ["RESTful API access", "Webhook notifications", "Integration with popular services"],
-              },
+              // {
+              //   icon: <Code className="h-6 w-6 text-primary mb-2" />,
+              //   title: "Webhook & API Integrations",
+              //   description: "Connect with your existing tools and workflows",
+              //   details:
+              //     "Seamlessly integrate with your development pipeline, CI/CD tools, and other services via our robust API and webhook support.",
+              //   bullets: ["RESTful API access", "Webhook notifications", "Integration with popular services"],
+              // },
               {
                 icon: <Smartphone className="h-6 w-6 text-primary mb-2" />,
                 title: "Mobile App & Responsive Dashboard",
@@ -345,184 +345,6 @@ export default function FeaturesPage() {
                 </Card>
               </motion.div>
             ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Advanced Features */}
-      <section className="w-full py-12 md:py-24" ref={advancedFeaturesRef}>
-        <div className="container px-4 md:px-6">
-          <motion.div
-            className="flex flex-col items-center justify-center space-y-4 text-center mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            animate={advancedFeaturesInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-            transition={{ duration: 0.6 }}
-          >
-            <div className="space-y-2">
-              <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">Advanced Capabilities</h2>
-              <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed">
-                Take your website monitoring to the next level with these powerful features
-              </p>
-            </div>
-          </motion.div>
-
-          <motion.div
-            className="grid gap-6 lg:grid-cols-2 lg:gap-12 mt-12"
-            initial="hidden"
-            animate={advancedFeaturesInView ? "visible" : "hidden"}
-            variants={containerAnimation}
-          >
-            <motion.div variants={itemAnimation}>
-              <Card className="enhanced-glass-card enhanced-gradient-border h-full">
-                <CardHeader>
-                  <Globe className="h-6 w-6 text-primary mb-2" />
-                  <CardTitle>Global Monitoring Network</CardTitle>
-                  <CardDescription>Monitor from multiple locations worldwide</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Our distributed monitoring network spans 6 continents and over 30 countries, ensuring your website
-                    is checked from locations that matter to your users. Identify regional performance issues and ensure
-                    global availability.
-                  </p>
-                  <div className="mt-6 h-[200px] rounded-md bg-muted relative overflow-hidden">
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-full h-full p-4">
-                        <div className="relative w-full h-full">
-                          {/* Simplified world map */}
-                          <div className="absolute inset-0 bg-primary/5 rounded-md"></div>
-                          {/* Monitoring points */}
-                          <motion.div
-                            className="absolute h-2 w-2 rounded-full bg-primary"
-                            style={{ top: "30%", left: "20%" }}
-                            animate={{ scale: [1, 1.5, 1] }}
-                            transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, repeatType: "loop" }}
-                          ></motion.div>
-                          <motion.div
-                            className="absolute h-2 w-2 rounded-full bg-primary"
-                            style={{ top: "40%", left: "48%" }}
-                            animate={{ scale: [1, 1.5, 1] }}
-                            transition={{
-                              duration: 2,
-                              repeat: Number.POSITIVE_INFINITY,
-                              repeatType: "loop",
-                              delay: 0.3,
-                            }}
-                          ></motion.div>
-                          <motion.div
-                            className="absolute h-2 w-2 rounded-full bg-primary"
-                            style={{ top: "35%", left: "80%" }}
-                            animate={{ scale: [1, 1.5, 1] }}
-                            transition={{
-                              duration: 2,
-                              repeat: Number.POSITIVE_INFINITY,
-                              repeatType: "loop",
-                              delay: 0.6,
-                            }}
-                          ></motion.div>
-                          <motion.div
-                            className="absolute h-2 w-2 rounded-full bg-primary"
-                            style={{ top: "60%", left: "30%" }}
-                            animate={{ scale: [1, 1.5, 1] }}
-                            transition={{
-                              duration: 2,
-                              repeat: Number.POSITIVE_INFINITY,
-                              repeatType: "loop",
-                              delay: 0.9,
-                            }}
-                          ></motion.div>
-                          <motion.div
-                            className="absolute h-2 w-2 rounded-full bg-primary"
-                            style={{ top: "70%", left: "85%" }}
-                            animate={{ scale: [1, 1.5, 1] }}
-                            transition={{
-                              duration: 2,
-                              repeat: Number.POSITIVE_INFINITY,
-                              repeatType: "loop",
-                              delay: 1.2,
-                            }}
-                          ></motion.div>
-                          <motion.div
-                            className="absolute h-2 w-2 rounded-full bg-primary"
-                            style={{ top: "20%", left: "60%" }}
-                            animate={{ scale: [1, 1.5, 1] }}
-                            transition={{
-                              duration: 2,
-                              repeat: Number.POSITIVE_INFINITY,
-                              repeatType: "loop",
-                              delay: 1.5,
-                            }}
-                          ></motion.div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-            <motion.div variants={itemAnimation}>
-              <Card className="enhanced-glass-card enhanced-gradient-border h-full">
-                <CardHeader>
-                  <MessageSquare className="h-6 w-6 text-primary mb-2" />
-                  <CardTitle>Synthetic User Monitoring</CardTitle>
-                  <CardDescription>Test user journeys and critical paths</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Go beyond simple uptime checks with synthetic monitoring that simulates user interactions. Test
-                    login flows, checkout processes, and other critical user journeys to ensure everything works as
-                    expected.
-                  </p>
-                  <div className="mt-6 space-y-4">
-                    <motion.div
-                      className="flex items-center gap-2"
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.5, delay: 0.3 }}
-                    >
-                      <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
-                        <span className="text-xs font-medium">1</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-sm font-medium">Login Flow</div>
-                        <div className="text-xs text-muted-foreground">Tests user authentication process</div>
-                      </div>
-                      <div className="text-xs font-medium text-green-500">PASSED</div>
-                    </motion.div>
-                    <motion.div
-                      className="flex items-center gap-2"
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.5, delay: 0.5 }}
-                    >
-                      <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
-                        <span className="text-xs font-medium">2</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-sm font-medium">Product Search</div>
-                        <div className="text-xs text-muted-foreground">Verifies search functionality</div>
-                      </div>
-                      <div className="text-xs font-medium text-green-500">PASSED</div>
-                    </motion.div>
-                    <motion.div
-                      className="flex items-center gap-2"
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.5, delay: 0.7 }}
-                    >
-                      <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
-                        <span className="text-xs font-medium">3</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-sm font-medium">Checkout Process</div>
-                        <div className="text-xs text-muted-foreground">Tests complete purchase flow</div>
-                      </div>
-                      <div className="text-xs font-medium text-amber-500">WARNING</div>
-                    </motion.div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
           </motion.div>
         </div>
       </section>

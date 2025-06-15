@@ -116,12 +116,12 @@ export default function Footer() {
             <Link href="/features" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               Features
             </Link>
-            <Link href="/pricing" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+            {/* <Link href="/pricing" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               Pricing
-            </Link>
-            <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+            </Link> */}
+            {/* <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               Dashboard
-            </Link>
+            </Link> */}
             <Link href="/contact" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               Contact
             </Link>
@@ -132,15 +132,15 @@ export default function Footer() {
             <Link href="/about" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               About
             </Link>
-            <Link href="/contact" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+            {/* <Link href="/contact" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               Contact
-            </Link>
+            </Link> */}
             <Link href="/blog" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               Blog
             </Link>
-            <Link href="/careers" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+            {/* <Link href="/careers" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               Careers
-            </Link>
+            </Link> */}
           </motion.div>
 
           <motion.div className="flex flex-col gap-2" variants={itemAnimation}>
@@ -154,9 +154,9 @@ export default function Footer() {
             <Link href="/cookies" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               Cookie Policy
             </Link>
-            <Link href="/security" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+            {/* <Link href="/security" className="text-sm text-muted-foreground hover:text-primary transition-colors">
               Security
-            </Link>
+            </Link> */}
           </motion.div>
         </div>
 

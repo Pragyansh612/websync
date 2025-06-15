@@ -14,10 +14,6 @@ import {
   CheckCircle2,
   Loader2,
   Mail,
-  MessageSquare,
-  Phone,
-  MapPin,
-  Clock,
   Globe,
   ArrowRight,
 } from "lucide-react"
@@ -46,11 +42,13 @@ export default function ContactPage() {
   const formRef = useRef(null)
   const contactInfoRef = useRef(null)
   const faqRef = useRef(null)
+  const globalSupportRef = useRef(null)
   const { toast } = useToast()
 
   const formInView = useInView(formRef, { once: true, amount: 0.3 })
   const contactInfoInView = useInView(contactInfoRef, { once: true, amount: 0.3 })
   const faqInView = useInView(faqRef, { once: true, amount: 0.3 })
+  const globalSupportInView = useInView(globalSupportRef, { once: true, amount: 0.3 })
 
   const validateForm = () => {
     const newErrors = {
@@ -95,31 +93,61 @@ export default function ContactPage() {
     return isValid
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validateForm()) return
 
     setIsSubmitting(true)
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Create email body for Gmail
+      const emailBody = `Hello WebSync Team,
+
+Name: ${name}
+Email: ${email}
+Inquiry Type: ${inquiryType}
+Subject: ${subject}
+
+Message:
+${message}
+
+Best regards,
+${name}`
+
+      // Create Gmail compose URL
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=websyncai@gmail.com&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`
+      
+      // Open Gmail in a new tab
+      window.open(gmailUrl, '_blank')
+
+      // Simulate processing time
+      setTimeout(() => {
+        setIsSubmitting(false)
+        setIsSubmitted(true)
+
+        // Reset form after submission
+        setName("")
+        setEmail("")
+        setSubject("")
+        setMessage("")
+        setInquiryType("")
+
+        toast({
+          title: "Gmail Opened Successfully!",
+          description: "Gmail has been opened in a new tab with your message pre-filled. Please review and send the email to complete your inquiry.",
+          duration: 5000,
+        })
+      }, 1000)
+    } catch (error) {
       setIsSubmitting(false)
-      setIsSubmitted(true)
-
-      // Reset form after submission
-      setName("")
-      setEmail("")
-      setSubject("")
-      setMessage("")
-      setInquiryType("")
-
       toast({
-        title: "Message Sent!",
-        description: "Thank you for reaching out. We'll respond to your inquiry shortly.",
+        title: "Error",
+        description: "There was an issue opening Gmail. Please try again or email us directly at websyncai@gmail.com",
+        variant: "destructive",
         duration: 5000,
       })
-    }, 1500)
+    }
   }
 
   const containerAnimation = {
@@ -150,17 +178,16 @@ export default function ContactPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <Link
+        {/* <Link
           href="/"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-2 transition-colors"
         >
           <ArrowLeft className="mr-1 h-4 w-4" />
           Back to Home
-        </Link>
+        </Link> */}
         <h1 className="text-3xl font-bold tracking-tight gradient-text">Contact Us</h1>
         <p className="text-muted-foreground max-w-2xl">
-          Have questions about WebSync? Our team is here to help. Fill out the form below or use one of our other
-          contact methods to get in touch.
+          Have questions about WebSync? Our team is here to help. Fill out the form below and we'll get back to you as soon as possible.
         </p>
       </motion.div>
 
@@ -192,9 +219,9 @@ export default function ContactPage() {
                   <div className="rounded-full bg-green-100 p-3 dark:bg-green-900/20">
                     <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
                   </div>
-                  <h3 className="mt-4 text-lg font-medium">Message Sent!</h3>
+                  <h3 className="mt-4 text-lg font-medium">Gmail Opened Successfully!</h3>
                   <p className="mt-2 text-sm text-muted-foreground max-w-md">
-                    Thank you for reaching out. Our team will review your message and respond to your inquiry shortly.
+                    Gmail has been opened in a new tab with your message pre-filled. Please review and send the email to complete your inquiry.
                     We typically respond within 24 hours during business days.
                   </p>
                   <Button className="mt-6 glass-button" variant="outline" onClick={() => setIsSubmitted(false)}>
@@ -309,7 +336,7 @@ export default function ContactPage() {
                         {isSubmitting ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Sending Message
+                            Opening Gmail
                           </>
                         ) : (
                           "Send Message"
@@ -321,6 +348,38 @@ export default function ContactPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Global Support Section moved below the form */}
+          <motion.div
+            className="mt-8"
+            ref={globalSupportRef}
+            initial={{ opacity: 0, y: 20 }}
+            animate={globalSupportInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <Card className="enhanced-glass-card bg-primary/5 enhanced-gradient-border">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <div className="rounded-full bg-primary/20 p-2">
+                    <Globe className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-lg">Global Support</h3>
+                    <p className="text-base text-muted-foreground mt-1">
+                      Our support team is available worldwide to help you with any questions or issues you may have with
+                      WebSync.
+                    </p>
+                    <Button variant="link" className="h-auto p-0 text-base text-primary mt-2" asChild>
+                      <Link href="/support">
+                        Visit Support Center
+                        <ArrowRight className="ml-1 h-3 w-3" />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
         </motion.div>
 
         <div className="lg:col-span-5 space-y-8">
@@ -334,7 +393,7 @@ export default function ContactPage() {
               <CardHeader>
                 <motion.div variants={itemAnimation}>
                   <CardTitle className="text-2xl">Contact Information</CardTitle>
-                  <CardDescription className="text-base">Other ways to get in touch with our team</CardDescription>
+                  <CardDescription className="text-base">Get in touch with our team</CardDescription>
                 </motion.div>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -344,57 +403,13 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-medium text-lg">Email</h3>
-                    <p className="text-base text-muted-foreground">For general inquiries and support</p>
+                    <p className="text-base text-muted-foreground">For all inquiries and support</p>
                     <a
-                      href="mailto:support@websync.io"
+                      href="mailto:websyncai@gmail.com"
                       className="text-base text-primary hover:underline transition-colors"
                     >
-                      support@websync.io
+                      websyncai@gmail.com
                     </a>
-                  </div>
-                </motion.div>
-                <motion.div className="flex items-start gap-4" variants={itemAnimation}>
-                  <div className="rounded-full bg-primary/10 p-2">
-                    <Phone className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-lg">Phone</h3>
-                    <p className="text-base text-muted-foreground">Available Monday-Friday, 9am-5pm EST</p>
-                    <a href="tel:+1-555-123-4567" className="text-base text-primary hover:underline transition-colors">
-                      +1 (555) 123-4567
-                    </a>
-                  </div>
-                </motion.div>
-                <motion.div className="flex items-start gap-4" variants={itemAnimation}>
-                  <div className="rounded-full bg-primary/10 p-2">
-                    <MessageSquare className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-lg">Live Chat</h3>
-                    <p className="text-base text-muted-foreground">Chat with our support team in real-time</p>
-                    <Button variant="link" className="h-auto p-0 text-base text-primary">
-                      Start a chat
-                    </Button>
-                  </div>
-                </motion.div>
-                <motion.div className="flex items-start gap-4" variants={itemAnimation}>
-                  <div className="rounded-full bg-primary/10 p-2">
-                    <MapPin className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-lg">Office Location</h3>
-                    <p className="text-base text-muted-foreground">123 Tech Avenue, Suite 400</p>
-                    <p className="text-base text-muted-foreground">San Francisco, CA 94107</p>
-                  </div>
-                </motion.div>
-                <motion.div className="flex items-start gap-4" variants={itemAnimation}>
-                  <div className="rounded-full bg-primary/10 p-2">
-                    <Clock className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-lg">Business Hours</h3>
-                    <p className="text-base text-muted-foreground">Monday-Friday: 9am-5pm EST</p>
-                    <p className="text-base text-muted-foreground">Saturday-Sunday: Closed</p>
                   </div>
                 </motion.div>
               </CardContent>
@@ -477,59 +492,8 @@ export default function ContactPage() {
               </CardFooter>
             </Card>
           </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={contactInfoInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-          >
-            <Card className="enhanced-glass-card bg-primary/5 enhanced-gradient-border">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-4">
-                  <div className="rounded-full bg-primary/20 p-2">
-                    <Globe className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-lg">Global Support</h3>
-                    <p className="text-base text-muted-foreground mt-1">
-                      Our support team is available worldwide to help you with any questions or issues you may have with
-                      WebSync.
-                    </p>
-                    <Button variant="link" className="h-auto p-0 text-base text-primary mt-2" asChild>
-                      <Link href="/support">
-                        Visit Support Center
-                        <ArrowRight className="ml-1 h-3 w-3" />
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
         </div>
       </div>
-
-      <motion.div
-        className="mt-12 rounded-lg overflow-hidden enhanced-glass-card enhanced-gradient-border"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.8 }}
-      >
-        <div className="h-[300px] w-full bg-muted relative">
-          <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3153.0968143067466!2d-122.41941638468173!3d37.77492997975903!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8085809c6c8f4459%3A0xb10ed6d9b5050fa5!2s123+Tech+Avenue%2C+San+Francisco%2C+CA+94107!5e0!3m2!1sen!2sus!4v1565285396245!5m2!1sen!2sus"
-            width="100%"
-            height="100%"
-            style={{ border: 0 }}
-            allowFullScreen
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            title="WebSync Office Location"
-            className="filter grayscale"
-          ></iframe>
-        </div>
-      </motion.div>
     </div>
   )
 }
-

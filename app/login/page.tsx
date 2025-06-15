@@ -190,13 +190,13 @@ export default function LoginPage() {
   return (
     <div className="container max-w-6xl py-10 px-4 md:px-6">
       <div className="mb-8">
-        <Link
+        {/* <Link
           href="/"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-2 transition-colors"
         >
           <ArrowLeft className="mr-1 h-4 w-4" />
           Back to Home
-        </Link>
+        </Link> */}
         <h1 className="text-3xl font-bold tracking-tight gradient-text">Welcome Back</h1>
         <p className="text-muted-foreground">Log in to your WebSync account to access your dashboard</p>
       </div>

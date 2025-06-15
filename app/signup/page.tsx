@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
@@ -16,7 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Check, Eye, EyeOff, Loader2, Mail, Lock, User } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/components/ui/use-toast"
-import { supabase } from "@/lib/supabaseClient"
+// import { supabase } from "@/lib/supabaseClient"
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export default function SignUpPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -46,6 +47,20 @@ export default function SignUpPage() {
   const benefitsRef = useRef(null)
   const formInView = useInView(formRef, { once: true, amount: 0.3 })
   const benefitsInView = useInView(benefitsRef, { once: true, amount: 0.3 })
+  const supabase = createClientComponentClient()
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (session) {
+        // If user is already logged in, redirect to dashboard
+        router.push('/dashboard')
+      }
+    }
+
+    checkSession()
+  }, [router])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -90,16 +105,16 @@ export default function SignUpPage() {
     if (!formData.email.trim()) {
       newErrors.email = "Email is required"
       isValid = false
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid"
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      newErrors.email = "Please enter a valid email address"
       isValid = false
     }
 
     if (!formData.password) {
       newErrors.password = "Password is required"
       isValid = false
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters"
+    } else if (formData.password.length < 6) { // Changed from 8 to 6
+      newErrors.password = "Password must be at least 6 characters"
       isValid = false
     }
 
@@ -128,44 +143,85 @@ export default function SignUpPage() {
     setIsLoading(true)
 
     try {
+      // Add more detailed logging
+      console.log('Attempting signup with:', {
+        email: formData.email,
+        hasPassword: !!formData.password,
+        passwordLength: formData.password.length
+      })
+
       // Supabase signup with explicit metadata
       const { data, error } = await supabase.auth.signUp({
-        email: formData.email,
+        email: formData.email.trim().toLowerCase(), // Ensure clean email
         password: formData.password,
         options: {
           data: {
-            full_name: `${formData.firstName} ${formData.lastName}`,
-          }
+            full_name: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+            first_name: formData.firstName.trim(),
+            last_name: formData.lastName.trim()
+          },
+          // Add email redirect URL if needed
+          emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       })
 
+      console.log('Signup response:', { data, error })
+
       if (error) {
-        // Handle signup error
-        setErrors((prev) => ({ ...prev, signupError: error.message }))
+        console.error('Signup error details:', error)
+
+        // Handle specific error types
+        let errorMessage = error.message
+
+        if (error.message.includes('Invalid email')) {
+          errorMessage = "Please enter a valid email address"
+        } else if (error.message.includes('Password')) {
+          errorMessage = "Password must be at least 6 characters long"
+        } else if (error.message.includes('already registered')) {
+          errorMessage = "An account with this email already exists"
+        } else if (error.status === 500) {
+          errorMessage = "Server error. Please try again in a few moments."
+        }
+
+        setErrors((prev) => ({ ...prev, signupError: errorMessage }))
         setIsLoading(false)
         return
       }
 
-      // Additional debug logging
-      console.log('Signup Data:', data)
+      // Check if user needs email confirmation
+      if (data.user && !data.session) {
+        toast({
+          title: "Check your email",
+          description: "We've sent you a confirmation link to complete your registration.",
+          duration: 8000,
+        })
+        // Don't redirect yet - wait for email confirmation
+        setIsLoading(false)
+        return
+      }
 
-      // Successful signup
+      // Successful signup with immediate session
       toast({
         title: "Account created successfully!",
-        description: "Please check your email to verify your account.",
+        description: "Welcome to WebSync!",
         duration: 5000,
       })
 
-      // Redirect or handle successful signup
       router.push("/dashboard")
-    } catch (catchError) {
-      console.error('Signup Catch Error:', catchError)
+    } catch (catchError: any) {
+      console.error('Signup catch error:', catchError)
 
-      // Catch any unexpected errors
+      let errorMessage = "An unexpected error occurred. Please try again."
+
+      if (catchError?.message) {
+        errorMessage = catchError.message
+      }
+
       setErrors((prev) => ({
         ...prev,
-        signupError: "An unexpected error occurred. Please try again."
+        signupError: errorMessage
       }))
+    } finally {
       setIsLoading(false)
     }
   }
@@ -228,13 +284,13 @@ export default function SignUpPage() {
   return (
     <div className="container max-w-6xl py-10 px-4 md:px-6">
       <div className="mb-8">
-        <Link
+        {/* <Link
           href="/"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-2 transition-colors"
         >
           <ArrowLeft className="mr-1 h-4 w-4" />
           Back to Home
-        </Link>
+        </Link> */}
         <h1 className="text-3xl font-bold tracking-tight gradient-text">Create Your Account</h1>
         <p className="text-muted-foreground">Join WebSync and start monitoring your websites in minutes</p>
       </div>

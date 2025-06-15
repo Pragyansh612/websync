@@ -110,7 +110,7 @@ export default function FeaturesSection() {
                 title: "Custom Alerts",
                 description: "Get notified your way when issues arise",
                 content:
-                  "Configure alerts via email, SMS, Slack, or webhooks with customizable thresholds and schedules.",
+                  "Configure alerts via email with customizable thresholds and schedules.",
               },
               {
                 icon: <Gauge className="h-6 w-6 text-gray-800 dark:text-gray-200 mb-2" />,
